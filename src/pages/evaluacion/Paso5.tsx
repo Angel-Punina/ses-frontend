@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { evaluacionesApi, type EvaluacionFactor } from '@/api/evaluaciones'
+import { evaluacionesApi } from '@/api/evaluaciones'
 
 const FODA_CONFIG = {
   Fortaleza: {
@@ -68,7 +68,6 @@ export function Paso5({ evaluacionId }: { evaluacionId: number }) {
   })
 
   const soporteFactor = factors.find((f) => f.factor_es_soporte)
-  const regularFactors = factors.filter((f) => !f.factor_es_soporte)
 
   // Compute live FODA assignments
   type FodaKey = 'Fortaleza' | 'Oportunidad' | 'Debilidad' | 'Amenaza'

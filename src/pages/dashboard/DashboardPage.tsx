@@ -1,6 +1,6 @@
 import { useAuthStore } from '@/store/authStore'
 import { authApi, type User } from '@/api/auth'
-import { evaluacionesApi, type Evaluacion, CATEGORIAS, type PrecalificacionInput } from '@/api/evaluaciones'
+import { evaluacionesApi, type Evaluacion, CATEGORIAS, type CategoriaValue, type PrecalificacionInput } from '@/api/evaluaciones'
 import { useNavigate } from 'react-router-dom'
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
@@ -521,7 +521,7 @@ function NuevaEvaluacionModal({ onClose, existingOrgs }: {
   const qc = useQueryClient()
 
   const [form, setForm] = useState({
-    nombre: '', software: '', organizacion: '', descripcion: '', categoria: 'otro',
+    nombre: '', software: '', organizacion: '', descripcion: '', categoria: 'otro' as CategoriaValue,
   })
   const [usarPrecal, setUsarPrecal] = useState(false)
   const [extras, setExtras] = useState<PrecalificacionInput>({
@@ -644,7 +644,7 @@ function NuevaEvaluacionModal({ onClose, existingOrgs }: {
           {/* Categoría */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 14 }}>
             <label style={{ fontSize: 13, fontWeight: 500, color: 'var(--gray1)' }}>Categoría <span style={{ color: 'var(--accent)' }}>*</span></label>
-            <select value={form.categoria} onChange={(e) => setForm({ ...form, categoria: e.target.value })}
+            <select value={form.categoria} onChange={(e) => setForm({ ...form, categoria: e.target.value as CategoriaValue })}
               style={selectStyle} disabled={isLoading} onFocus={focusIn} onBlur={focusOut}>
               {CATEGORIAS.map((cat) => (
                 <option key={cat.value} value={cat.value}>{cat.label}</option>
