@@ -94,3 +94,26 @@
   0%, 100% { opacity: 1; }
   50%       { opacity: 0.5; }
 }
+
+/* ── Responsive utilities ── */
+@media (max-width: 767px) {
+  html {
+    font-size: 14px;
+  }
+
+  /* Smooth momentum scroll on iOS */
+  body {
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Scrollable tables */
+  .table-scroll {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Prevent text from being cut off in narrow containers */
+  input, select, textarea {
+    font-size: 16px !important; /* prevents iOS auto-zoom on focus */
+  }
+}

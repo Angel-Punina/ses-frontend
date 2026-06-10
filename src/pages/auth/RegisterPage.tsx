@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { authApi } from '@/api/auth'
+import { useIsMobile } from '@/lib/useMediaQuery'
 
 const inputStyle: React.CSSProperties = {
   width: '100%',
@@ -32,6 +33,7 @@ const errorInputStyle: React.CSSProperties = {
 
 export function RegisterPage() {
   const navigate = useNavigate()
+  const isMobile = useIsMobile()
   const [form, setForm] = useState({
     correo: '',
     nombre: '',
@@ -91,9 +93,9 @@ export function RegisterPage() {
     form.password_confirm.length === 0 || form.password === form.password_confirm
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', minHeight: '100vh' }}>
-      {/* ── Brand panel ── */}
-      <div style={{
+    <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', minHeight: '100vh' }}>
+      {/* ── Brand panel — hidden on mobile ── */}
+      {!isMobile && <div style={{
         background: 'var(--dark)', padding: '60px 52px',
         display: 'flex', flexDirection: 'column', justifyContent: 'center',
         position: 'relative', overflow: 'hidden',
@@ -159,12 +161,14 @@ export function RegisterPage() {
             </p>
           </div>
         </div>
-      </div>
+      </div>}
 
       {/* ── Form panel ── */}
       <div style={{
         background: 'var(--bg)', display: 'flex',
-        alignItems: 'center', justifyContent: 'center', padding: 40,
+        alignItems: 'center', justifyContent: 'center',
+        padding: isMobile ? '32px 20px' : 40,
+        minHeight: isMobile ? '100vh' : undefined,
         overflowY: 'auto',
       }}>
         <div style={{
@@ -189,7 +193,7 @@ export function RegisterPage() {
 
           <form onSubmit={handleSubmit}>
             {/* Nombre / Apellido row */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 16 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 12, marginBottom: 16 }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                 <label style={{ fontSize: 13, fontWeight: 500, color: 'var(--gray1)' }}>
                   Nombre <span style={{ color: 'var(--accent)' }}>*</span>

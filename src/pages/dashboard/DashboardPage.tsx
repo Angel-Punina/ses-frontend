@@ -3,6 +3,7 @@ import { authApi, type User } from '@/api/auth'
 import { evaluacionesApi, type Evaluacion, CATEGORIAS, type CategoriaValue, type PrecalificacionInput } from '@/api/evaluaciones'
 import { useNavigate } from 'react-router-dom'
 import { useState } from 'react'
+import { useIsMobile } from '@/lib/useMediaQuery'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { AdminView } from './AdminView'
 import { ComparadorView } from './ComparadorView'
@@ -75,6 +76,13 @@ export function DashboardPage() {
   const navigate = useNavigate()
   const [activeNav, setActiveNav] = useState('dashboard')
   const [loggingOut, setLoggingOut] = useState(false)
+  const [sidebarOpen, setSidebarOpen] = useState(false)
+  const isMobile = useIsMobile()
+
+  const handleNav = (key: string) => {
+    setActiveNav(key)
+    if (isMobile) setSidebarOpen(false)
+  }
 
   const handleLogout = async () => {
     setLoggingOut(true)
@@ -85,28 +93,51 @@ export function DashboardPage() {
   }
 
   const roleBadge = getRoleBadge(user?.rol)
+  const NAV_TITLE: Record<string, string> = {
+    dashboard: 'Dashboard', evaluaciones: 'Evaluaciones', comparar: 'Comparar',
+    reportes: 'Reportes', catalogo: 'Catálogo GUIOS', admin: 'Administración',
+  }
 
   return (
     <div style={{ display: 'flex', minHeight: '100vh', background: 'var(--bg)' }}>
+      {/* ── Mobile backdrop ── */}
+      {isMobile && sidebarOpen && (
+        <div
+          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 150 }}
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+
       {/* ── Sidebar ── */}
       <aside style={{
         background: 'var(--dark)', display: 'flex', flexDirection: 'column',
-        position: 'fixed', top: 0, left: 0, width: 'var(--sidebar-w)', height: '100vh', zIndex: 100,
+        position: 'fixed', top: 0, left: 0,
+        width: isMobile ? 260 : 'var(--sidebar-w)',
+        height: '100vh', zIndex: 200,
+        transform: isMobile && !sidebarOpen ? 'translateX(-100%)' : 'translateX(0)',
+        transition: 'transform 0.25s ease',
       }}>
         <div style={{
-          padding: '16px 18px 14px', display: 'flex', alignItems: 'center', gap: 10,
+          padding: '16px 18px 14px', display: 'flex', alignItems: 'center',
+          justifyContent: isMobile ? 'space-between' : 'flex-start', gap: 10,
           borderBottom: '1px solid rgba(255,255,255,0.07)',
         }}>
           <img src="/seslogo.png" alt="SES" style={{ width: 90, height: 'auto', display: 'block', borderRadius: 6 }} />
+          {isMobile && (
+            <button
+              onClick={() => setSidebarOpen(false)}
+              style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: '#7fb3d3', fontSize: 20, padding: 4, lineHeight: 1 }}
+            >✕</button>
+          )}
         </div>
 
         <nav style={{ flex: 1, padding: '12px 10px', display: 'flex', flexDirection: 'column', gap: 2 }}>
           {NAV_ITEMS.map((item) => (
-            <NavButton key={item.key} item={item} active={activeNav === item.key} onClick={() => setActiveNav(item.key)} />
+            <NavButton key={item.key} item={item} active={activeNav === item.key} onClick={() => handleNav(item.key)} />
           ))}
           <div style={{ height: 1, background: 'rgba(255,255,255,0.07)', margin: '8px 0' }} />
           {user?.rol === 'Admin' && NAV_ADMIN.map((item) => (
-            <NavButton key={item.key} item={item} active={activeNav === item.key} onClick={() => setActiveNav(item.key)} />
+            <NavButton key={item.key} item={item} active={activeNav === item.key} onClick={() => handleNav(item.key)} />
           ))}
         </nav>
 
@@ -134,23 +165,32 @@ export function DashboardPage() {
       </aside>
 
       {/* ── Main area ── */}
-      <div style={{ marginLeft: 'var(--sidebar-w)', flex: 1, display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
+      <div style={{ marginLeft: isMobile ? 0 : 'var(--sidebar-w)', flex: 1, display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
         <header style={{
           height: 'var(--topbar-h)', background: 'var(--white)',
           borderBottom: '1px solid rgba(0,0,0,0.07)',
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          padding: '0 32px', position: 'sticky', top: 0, zIndex: 50, flexShrink: 0,
+          padding: isMobile ? '0 16px' : '0 32px',
+          position: 'sticky', top: 0, zIndex: 50, flexShrink: 0,
         }}>
-          <span style={{ fontFamily: '"Fraunces", serif', fontSize: 16, fontWeight: 600, color: 'var(--dark)' }}>
-            {activeNav === 'dashboard' ? 'Dashboard' : activeNav === 'evaluaciones' ? 'Evaluaciones' : activeNav === 'comparar' ? 'Comparar' : activeNav === 'reportes' ? 'Reportes' : activeNav === 'catalogo' ? 'Catálogo GUIOS' : 'Administración'}
-          </span>
-          <span style={{ fontSize: 12, fontWeight: 600, background: roleBadge.bg, color: roleBadge.color, padding: '3px 10px', borderRadius: 20 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            {isMobile && (
+              <button
+                onClick={() => setSidebarOpen(true)}
+                style={{ width: 34, height: 34, borderRadius: 8, border: '1.5px solid #d5d8dc', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: 'var(--gray1)', background: 'transparent', fontSize: 18, flexShrink: 0 }}
+              >☰</button>
+            )}
+            <span style={{ fontFamily: '"Fraunces", serif', fontSize: 16, fontWeight: 600, color: 'var(--dark)' }}>
+              {NAV_TITLE[activeNav] ?? 'Dashboard'}
+            </span>
+          </div>
+          <span style={{ fontSize: 12, fontWeight: 600, background: roleBadge.bg, color: roleBadge.color, padding: '3px 10px', borderRadius: 20, whiteSpace: 'nowrap' }}>
             {user?.rol}
           </span>
         </header>
 
-        <main style={{ padding: '28px 32px', flex: 1 }}>
-          {activeNav === 'dashboard' && <DashboardHome user={user} onNewEval={() => setActiveNav('evaluaciones')} />}
+        <main style={{ padding: isMobile ? 16 : '28px 32px', flex: 1 }}>
+          {activeNav === 'dashboard' && <DashboardHome user={user} onNewEval={() => handleNav('evaluaciones')} />}
           {activeNav === 'evaluaciones' && <EvaluacionesView />}
           {activeNav === 'comparar' && <ComparadorView />}
           {activeNav === 'reportes' && <ReportesView />}
@@ -254,7 +294,7 @@ function DashboardHome({ user, onNewEval }: { user: User | null; onNewEval: () =
           >Nueva Evaluación</button>
         </div>
       ) : (
-        <div style={{ background: 'var(--white)', border: '1px solid rgba(0,0,0,0.07)', borderRadius: 'var(--radius)', boxShadow: 'var(--shadow)', overflow: 'hidden' }}>
+        <div style={{ background: 'var(--white)', border: '1px solid rgba(0,0,0,0.07)', borderRadius: 'var(--radius)', boxShadow: 'var(--shadow)', overflow: 'clip' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 20px', borderBottom: '1px solid #f2f3f4' }}>
             <h3 style={{ fontSize: 14, fontWeight: 600, color: 'var(--dark)' }}>Evaluaciones recientes</h3>
             <button onClick={onNewEval} style={{ fontSize: 12, color: 'var(--light)', fontWeight: 500, background: 'none', border: 'none', cursor: 'pointer' }}>+ Nueva</button>
@@ -297,7 +337,7 @@ function EvaluacionesView() {
           </button>
         </div>
       ) : (
-        <div style={{ background: 'var(--white)', border: '1px solid rgba(0,0,0,0.07)', borderRadius: 'var(--radius)', boxShadow: 'var(--shadow)', overflow: 'hidden' }}>
+        <div style={{ background: 'var(--white)', border: '1px solid rgba(0,0,0,0.07)', borderRadius: 'var(--radius)', boxShadow: 'var(--shadow)', overflow: 'clip' }}>
           <EvalTable evals={evals} />
         </div>
       )}
@@ -396,8 +436,8 @@ function EvalTable({ evals, onDeleteSuccess }: { evals: Evaluacion[]; onDeleteSu
         loading={deleteMutation.isPending}
       />
     )}
-    <div style={{ overflow: 'hidden', borderRadius: 'var(--radius)' }}>
-      <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+    <div style={{ overflowX: 'auto', borderRadius: 'var(--radius)' }}>
+      <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 520 }}>
         <thead>
           <tr>
             <th style={TH}>Software</th>
@@ -519,6 +559,7 @@ function NuevaEvaluacionModal({ onClose, existingOrgs }: {
 }) {
   const navigate = useNavigate()
   const qc = useQueryClient()
+  const isMobile = useIsMobile()
 
   const [form, setForm] = useState({
     nombre: '', software: '', organizacion: '', descripcion: '', categoria: 'otro' as CategoriaValue,
@@ -618,7 +659,7 @@ function NuevaEvaluacionModal({ onClose, existingOrgs }: {
           </div>
 
           {/* Software + Organización */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 14 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 12, marginBottom: 14 }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
               <label style={{ fontSize: 13, fontWeight: 500, color: 'var(--gray1)' }}>Software <span style={{ color: 'var(--accent)' }}>*</span></label>
               <input type="text" required value={form.software} onChange={(e) => setForm({ ...form, software: e.target.value })}
@@ -712,7 +753,7 @@ function NuevaEvaluacionModal({ onClose, existingOrgs }: {
 
             {usarPrecal && (
               <div style={{ marginTop: 14, paddingTop: 14, borderTop: '1px solid #e8d5f5', display: 'flex', flexDirection: 'column', gap: 12 }}>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 12 }}>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                     <label style={{ fontSize: 12.5, fontWeight: 500, color: '#6c3483' }}>Propósito de uso</label>
                     <select

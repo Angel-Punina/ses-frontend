@@ -1,6 +1,7 @@
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
 import { useState } from 'react'
 import { useQuery, useMutation } from '@tanstack/react-query'
+import { useIsMobile } from '@/lib/useMediaQuery'
 import { evaluacionesApi } from '@/api/evaluaciones'
 import { Paso1 } from './Paso1'
 import { Paso2 } from './Paso2'
@@ -34,6 +35,7 @@ export function EvaluacionPage() {
   const [searchParams] = useSearchParams()
   const pasoOverride = searchParams.get('paso') ? Number(searchParams.get('paso')) : null
   const [showShare, setShowShare] = useState(false)
+  const isMobile = useIsMobile()
 
   const { data: evaluacion, isLoading, error } = useQuery({
     queryKey: ['evaluacion', id],
@@ -65,7 +67,8 @@ export function EvaluacionPage() {
       {/* ── Top bar ── */}
       <div style={{
         background: 'var(--white)', borderBottom: '1px solid rgba(0,0,0,0.07)',
-        padding: '0 32px', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        padding: isMobile ? '0 12px' : '0 32px',
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         height: 56, flexShrink: 0, position: 'sticky', top: 0, zIndex: 50,
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
@@ -76,7 +79,7 @@ export function EvaluacionPage() {
             onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent' }}
           >←</button>
           <div style={{ minWidth: 0 }}>
-            <span style={{ fontFamily: '"DM Sans", sans-serif', fontSize: 16, fontWeight: 600, color: 'var(--dark)', display: 'block', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 400 }}>
+            <span style={{ fontFamily: '"DM Sans", sans-serif', fontSize: 16, fontWeight: 600, color: 'var(--dark)', display: 'block', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: isMobile ? 160 : 400 }}>
               {evaluacion.nombre}
             </span>
             <span style={{ fontSize: 12, color: 'var(--gray2)' }}>{evaluacion.software}</span>
@@ -84,8 +87,8 @@ export function EvaluacionPage() {
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--green)' }}>
-            <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--green)', display: 'inline-block' }} />
-            Guardado automáticamente
+            <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--green)', display: 'inline-block', flexShrink: 0 }} />
+            {!isMobile && 'Guardado automáticamente'}
           </div>
           <button
             onClick={() => setShowShare(true)}
@@ -142,7 +145,7 @@ export function EvaluacionPage() {
       </div>
 
       {/* ── Content ── */}
-      <div style={{ flex: 1, padding: '24px 32px', maxWidth: 1100, width: '100%', margin: '0 auto', boxSizing: 'border-box' }}>
+      <div style={{ flex: 1, padding: isMobile ? '16px' : '24px 32px', maxWidth: 1100, width: '100%', margin: '0 auto', boxSizing: 'border-box' }}>
         {pasoActual === 1 && <Paso1 evaluacionId={Number(id)} />}
         {pasoActual === 2 && <Paso2 evaluacionId={Number(id)} />}
         {pasoActual === 3 && <Paso3 evaluacionId={Number(id)} />}

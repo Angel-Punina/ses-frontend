@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Link, useNavigate, useLocation } from 'react-router-dom'
 import { authApi } from '@/api/auth'
 import { useAuthStore } from '@/store/authStore'
+import { useIsMobile } from '@/lib/useMediaQuery'
 
 const inputStyle: React.CSSProperties = {
   width: '100%',
@@ -19,6 +20,7 @@ export function LoginPage() {
   const navigate = useNavigate()
   const location = useLocation()
   const setUser = useAuthStore((s) => s.setUser)
+  const isMobile = useIsMobile()
 
   const registered = (location.state as { registered?: boolean } | null)?.registered ?? false
 
@@ -44,9 +46,9 @@ export function LoginPage() {
   }
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', minHeight: '100vh' }}>
-      {/* ── Brand panel ── */}
-      <div style={{
+    <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', minHeight: '100vh' }}>
+      {/* ── Brand panel — hidden on mobile ── */}
+      {!isMobile && <div style={{
         background: 'var(--dark)',
         padding: '60px 52px',
         display: 'flex',
@@ -105,12 +107,14 @@ export function LoginPage() {
             ))}
           </div>
         </div>
-      </div>
+      </div>}
 
       {/* ── Form panel ── */}
       <div style={{
         background: 'var(--bg)', display: 'flex',
-        alignItems: 'center', justifyContent: 'center', padding: 40,
+        alignItems: 'center', justifyContent: 'center',
+        padding: isMobile ? '32px 20px' : 40,
+        minHeight: isMobile ? '100vh' : undefined,
       }}>
         <div style={{
           background: 'var(--white)', borderRadius: 16, padding: 40,
