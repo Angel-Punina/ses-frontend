@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { evaluacionesApi, type CompararResponse } from '@/api/evaluaciones'
+import { evaluacionesApi, type CompararResponse, type ComparativoSoftwareResponse } from '@/api/evaluaciones'
 
 const DIM_LABEL: Record<string, string> = {
   T: 'Tecnológica', O: 'Organizacional', E: 'Económica',
@@ -48,6 +48,8 @@ export function ComparadorView() {
   const completed = evals.filter((e) => e.estado === 'completada')
   const [selA, setSelA] = useState<string>('')
   const [selB, setSelB] = useState<string>('')
+  const [iaOpen, setIaOpen] = useState(false)
+  const [iaSoftware, setIaSoftware] = useState('')
 
   const canCompare = selA && selB && selA !== selB
 
@@ -55,6 +57,13 @@ export function ComparadorView() {
     queryKey: ['comparar', selA, selB],
     queryFn: () => evaluacionesApi.comparar([Number(selA), Number(selB)]),
     enabled: !!canCompare,
+  })
+
+  const { data: iaData, isLoading: iaLoading, isError: iaError } = useQuery<ComparativoSoftwareResponse>({
+    queryKey: ['comparar-software-ia', iaSoftware],
+    queryFn: () => evaluacionesApi.compararSoftware(iaSoftware),
+    enabled: iaOpen && !!iaSoftware,
+    staleTime: 5 * 60 * 1000,
   })
 
   const selectStyle: React.CSSProperties = {
@@ -121,6 +130,171 @@ export function ComparadorView() {
       {/* Results */}
       {result && !isLoading && (
         <CompararTable result={result} />
+      )}
+
+      {/* IA Comparative analysis panel */}
+      {result && !isLoading && (
+        <div style={{ marginTop: 20, border: '1.5px solid #d5d8dc', borderRadius: 'var(--radius)', overflow: 'hidden' }}>
+          <button
+            onClick={() => {
+              if (!iaOpen && !iaSoftware) {
+                const softwareA = result.evaluaciones[0]?.software ?? ''
+                setIaSoftware(softwareA)
+              }
+              setIaOpen((v) => !v)
+            }}
+            style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 18px', background: iaOpen ? '#fafbfc' : 'var(--white)', border: 'none', cursor: 'pointer', gap: 12 }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <span style={{ fontSize: 15 }}>✦</span>
+              <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--dark)' }}>Análisis comparativo IA</span>
+              <span style={{ fontSize: 12, color: 'var(--gray2)' }}>— patrones y consistencia entre contextos organizacionales</span>
+            </div>
+            <span style={{ fontSize: 12, color: 'var(--gray2)', transform: iaOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }}>▼</span>
+          </button>
+
+          {iaOpen && (
+            <div style={{ borderTop: '1px solid #eaecee', padding: '18px 20px' }}>
+              {/* Software selector */}
+              <div style={{ display: 'flex', gap: 10, marginBottom: 18, alignItems: 'center', flexWrap: 'wrap' }}>
+                <label style={{ fontSize: 13, fontWeight: 500, color: 'var(--gray1)', flexShrink: 0 }}>Analizar software:</label>
+                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                  {Array.from(new Set(result.evaluaciones.map((e) => e.software))).map((sw) => (
+                    <button
+                      key={sw}
+                      onClick={() => setIaSoftware(sw)}
+                      style={{
+                        padding: '6px 14px', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: 'pointer',
+                        background: iaSoftware === sw ? 'var(--dark)' : 'transparent',
+                        color: iaSoftware === sw ? 'var(--white)' : 'var(--gray1)',
+                        border: `1.5px solid ${iaSoftware === sw ? 'var(--dark)' : '#d5d8dc'}`,
+                      }}
+                    >{sw}</button>
+                  ))}
+                </div>
+              </div>
+
+              {iaLoading && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  {[1, 2, 3].map((i) => (
+                    <div key={i} style={{ height: 44, background: '#eaecee', borderRadius: 8, animation: 'pulse 1.5s ease-in-out infinite' }} />
+                  ))}
+                </div>
+              )}
+              {iaError && (
+                <p style={{ fontSize: 13, color: 'var(--gray2)', textAlign: 'center', padding: '16px 0' }}>
+                  No se pudo obtener el análisis. Intenta de nuevo.
+                </p>
+              )}
+              {iaData && !iaLoading && (
+                <IaComparativoPanel data={iaData} />
+              )}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
+const CONSIST_STYLE = {
+  alta:  { color: '#1e8449', bg: '#eafaf1', border: '#a9dfbf', label: 'Consistente' },
+  media: { color: '#b7770d', bg: '#fef9e7', border: '#f0c96a', label: 'Variable' },
+  baja:  { color: '#922b21', bg: '#f9ebea', border: '#e6beba', label: 'Inconsistente' },
+} as const
+
+function IaComparativoPanel({ data }: { data: ComparativoSoftwareResponse }) {
+  return (
+    <div>
+      {data.resumen_ia && (
+        <div style={{ background: '#ebf5fb', border: '1px solid #aed6f1', borderRadius: 8, padding: '13px 16px', marginBottom: 18 }}>
+          <p style={{ fontSize: 13.5, color: '#1a5276', lineHeight: 1.65, margin: 0 }}>{data.resumen_ia}</p>
+        </div>
+      )}
+
+      {data.evaluaciones.length > 0 && (
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 16 }}>
+          {data.evaluaciones.map((ev) => {
+            const recStyle = { Adoptar: { bg: '#eafaf1', color: 'var(--green)' }, 'Con condiciones': { bg: '#fef9e7', color: 'var(--orange)' }, 'No adoptar': { bg: '#f9ebea', color: 'var(--red)' } }[ev.recomendacion ?? ''] ?? { bg: '#f2f3f4', color: 'var(--gray2)' }
+            return (
+              <div key={ev.id} style={{ padding: '7px 12px', borderRadius: 8, border: '1px solid #eaecee', background: 'var(--white)', fontSize: 12 }}>
+                <span style={{ fontWeight: 600, color: 'var(--dark)' }}>{ev.organizacion || 'Sin org.'}</span>
+                {ev.recomendacion && (
+                  <span style={{ marginLeft: 8, padding: '2px 8px', borderRadius: 10, background: recStyle.bg, color: recStyle.color, fontWeight: 600, fontSize: 11 }}>
+                    {ev.recomendacion}
+                  </span>
+                )}
+              </div>
+            )
+          })}
+        </div>
+      )}
+
+      {data.factores_clave.length > 0 ? (
+        <div style={{ background: 'var(--white)', border: '1px solid rgba(0,0,0,0.07)', borderRadius: 'var(--radius)', overflow: 'auto' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 560 }}>
+            <thead>
+              <tr style={{ background: '#fafbfc', borderBottom: '1px solid #eaecee' }}>
+                <th style={{ padding: '9px 14px', fontSize: 11, fontWeight: 600, color: 'var(--gray2)', textAlign: 'left' }}>Factor</th>
+                <th style={{ padding: '9px 14px', fontSize: 11, fontWeight: 600, color: 'var(--gray2)', textAlign: 'center', minWidth: 70 }}>PM prom.</th>
+                <th style={{ padding: '9px 14px', fontSize: 11, fontWeight: 600, color: 'var(--gray2)', textAlign: 'center', minWidth: 60 }}>Rango</th>
+                <th style={{ padding: '9px 14px', fontSize: 11, fontWeight: 600, color: 'var(--gray2)', textAlign: 'left', minWidth: 120 }}>Consistencia</th>
+                <th style={{ padding: '9px 14px', fontSize: 11, fontWeight: 600, color: 'var(--gray2)', textAlign: 'left' }}>FODA distribución</th>
+              </tr>
+            </thead>
+            <tbody>
+              {data.factores_clave.map((f, i) => {
+                const cs = CONSIST_STYLE[f.consistencia]
+                const dimStyle = DIM_COLOR[f.dimension] ?? DIM_COLOR['T']
+                return (
+                  <tr key={f.codigo} style={{ borderBottom: i < data.factores_clave.length - 1 ? '1px solid #f5f6f7' : 'none' }}
+                    onMouseEnter={(e) => { (e.currentTarget as HTMLTableRowElement).style.background = '#fafbfc' }}
+                    onMouseLeave={(e) => { (e.currentTarget as HTMLTableRowElement).style.background = 'transparent' }}
+                  >
+                    <td style={{ padding: '10px 14px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <span style={{ width: 20, height: 20, borderRadius: '50%', background: dimStyle.bg, color: dimStyle.color, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 9, fontWeight: 700, flexShrink: 0 }}>{f.dimension}</span>
+                        <span style={{ fontSize: 10, fontFamily: '"DM Mono", monospace', color: 'var(--gray2)', background: '#f2f3f4', padding: '1px 5px', borderRadius: 4 }}>{f.codigo}</span>
+                        <span style={{ fontSize: 12.5, color: 'var(--dark)' }}>{f.nombre}</span>
+                      </div>
+                    </td>
+                    <td style={{ padding: '10px 14px', textAlign: 'center' }}>
+                      <span style={{ fontFamily: '"DM Mono", monospace', fontSize: 13, fontWeight: 700, color: f.avg_pm >= 3 ? 'var(--green)' : f.avg_pm >= 2 ? 'var(--orange)' : 'var(--red)' }}>
+                        {f.avg_pm.toFixed(1)}
+                      </span>
+                    </td>
+                    <td style={{ padding: '10px 14px', textAlign: 'center' }}>
+                      <span style={{ fontFamily: '"DM Mono", monospace', fontSize: 12, color: f.pm_range > 1.5 ? 'var(--red)' : f.pm_range > 0.5 ? 'var(--orange)' : 'var(--green)' }}>
+                        ±{f.pm_range.toFixed(1)}
+                      </span>
+                    </td>
+                    <td style={{ padding: '10px 14px' }}>
+                      <span style={{ fontSize: 11, fontWeight: 600, padding: '2px 8px', borderRadius: 10, background: cs.bg, color: cs.color, border: `1px solid ${cs.border}` }}>
+                        {cs.label}
+                      </span>
+                    </td>
+                    <td style={{ padding: '10px 14px' }}>
+                      <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
+                        {Object.entries(f.foda_distribucion).map(([cat, count]) => {
+                          const fc = FODA_COLOR[cat] ?? FODA_COLOR['']
+                          return (
+                            <span key={cat} style={{ fontSize: 10.5, fontWeight: 600, padding: '1px 7px', borderRadius: 10, background: fc.bg, color: fc.color }}>
+                              {cat} ×{count}
+                            </span>
+                          )
+                        })}
+                      </div>
+                    </td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        </div>
+      ) : (
+        <p style={{ fontSize: 13, color: 'var(--gray2)', textAlign: 'center', padding: '16px 0' }}>
+          No hay suficientes evaluaciones completadas para este software.
+        </p>
       )}
     </div>
   )

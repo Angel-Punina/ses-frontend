@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { evaluacionesApi, type EvaluacionSubfactor } from '@/api/evaluaciones'
+import { evaluacionesApi, type EvaluacionSubfactor, type InconsistenciaIA } from '@/api/evaluaciones'
 import { ContextoIAPanel } from './ContextoIAPanel'
 
 const ID_LABELS: Record<number, { label: string; short: string }> = {
@@ -93,15 +93,24 @@ export function Paso3({ evaluacionId }: { evaluacionId: number }) {
   })
 
   const [idMap, setIdMap] = useState<Record<number, number>>({})
+  // Stores the original IA-suggested values to detect user modifications
+  const [iaOriginalMap, setIaOriginalMap] = useState<Record<number, number>>({})
   const [activeFactor, setActiveFactor] = useState<number | null>(null)
+  const [consistencyWarnings, setConsistencyWarnings] = useState<InconsistenciaIA[]>([])
+  const [showConsistencyModal, setShowConsistencyModal] = useState(false)
+  const [checkingConsistency, setCheckingConsistency] = useState(false)
 
   useEffect(() => {
     if (!subfactors.length) return
     const initial: Record<number, number> = {}
+    const iaOriginal: Record<number, number> = {}
     subfactors.forEach((sf) => {
       if (sf.id_valor) initial[sf.id] = sf.id_valor
+      // Track which values came from IA precalification
+      if (sf.ia_sugerida && sf.id_valor) iaOriginal[sf.id] = sf.id_valor
     })
     setIdMap(initial)
+    setIaOriginalMap(iaOriginal)
   }, [subfactors])
 
   const saveMutation = useMutation({
@@ -135,13 +144,31 @@ export function Paso3({ evaluacionId }: { evaluacionId: number }) {
   const allSfScored = scoredSf === totalSf && totalSf > 0
   const isIaPrecal = subfactors.length > 0 && subfactors[0]?.ia_sugerida
 
+  const advanceToPaso4 = () => navigate(`/evaluacion/${evaluacionId}?paso=4`, { replace: true })
+
   const handleSave = () => {
     const payload = Object.entries(idMap).map(([sfId, val]) => ({
       subfactor_id: Number(sfId),
       id_valor: val,
     }))
     saveMutation.mutate(payload, {
-      onSuccess: () => navigate(`/evaluacion/${evaluacionId}?paso=4`, { replace: true }),
+      onSuccess: async () => {
+        setCheckingConsistency(true)
+        try {
+          const res = await evaluacionesApi.analizarConsistencia(evaluacionId)
+          const significant = res.inconsistencias.filter((w) => w.severidad === 'alta' || w.severidad === 'media')
+          if (significant.length > 0) {
+            setConsistencyWarnings(significant)
+            setShowConsistencyModal(true)
+          } else {
+            advanceToPaso4()
+          }
+        } catch {
+          advanceToPaso4()
+        } finally {
+          setCheckingConsistency(false)
+        }
+      },
     })
   }
 
@@ -151,6 +178,13 @@ export function Paso3({ evaluacionId }: { evaluacionId: number }) {
 
   return (
     <div>
+      {showConsistencyModal && (
+        <ConsistencyWarningModal
+          warnings={consistencyWarnings}
+          onContinue={() => { setShowConsistencyModal(false); advanceToPaso4() }}
+          onReview={() => setShowConsistencyModal(false)}
+        />
+      )}
       <div style={{ marginBottom: 18 }}>
         <h3 style={{ fontFamily: '"DM Sans", sans-serif', fontSize: 20, fontWeight: 600, color: 'var(--dark)', marginBottom: 6 }}>
           Paso 3 — Evaluación de subfactores
@@ -165,9 +199,8 @@ export function Paso3({ evaluacionId }: { evaluacionId: number }) {
 
       {isIaPrecal && (
         <div style={{ background: '#f5eef8', border: '1px solid #d2b4de', borderRadius: 8, padding: '11px 14px', fontSize: 13, color: '#6c3483', display: 'flex', alignItems: 'flex-start', gap: 10, marginBottom: 14, lineHeight: 1.5 }}>
-          <span style={{ flexShrink: 0, fontSize: 15 }}>✦</span>
           <span>
-            <strong>Precalificación IA aplicada</strong> — los valores de cumplimiento han sido pre-rellenados por Claude basándose en el análisis del software.
+            <strong>Precalificación IA aplicada</strong> — los valores de cumplimiento han sido pre-rellenados por la IA basándose en el análisis del software.
             {' '}Revisa y ajusta cada subfactor según tu criterio antes de continuar.
           </span>
         </div>
@@ -270,6 +303,8 @@ export function Paso3({ evaluacionId }: { evaluacionId: number }) {
                 {activeData.items.map((sf) => {
                   const selected = idMap[sf.id]
                   const isIa = sf.subfactor_origen === 'ia'
+                  // True when this specific value was set by IA precal and the user hasn't changed it
+                  const isIaSuggestedValue = sf.ia_sugerida && selected !== undefined && iaOriginalMap[sf.id] === selected
                   return (
                     <div
                       key={sf.id}
@@ -277,9 +312,10 @@ export function Paso3({ evaluacionId }: { evaluacionId: number }) {
                         display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between',
                         gap: 16, padding: '14px 20px', borderBottom: '1px solid #f5f6f7',
                         transition: 'background 0.12s',
+                        background: isIaSuggestedValue ? 'rgba(142,68,173,0.02)' : 'transparent',
                       }}
-                      onMouseEnter={(e) => { e.currentTarget.style.background = '#fafbfc' }}
-                      onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent' }}
+                      onMouseEnter={(e) => { e.currentTarget.style.background = isIaSuggestedValue ? 'rgba(142,68,173,0.04)' : '#fafbfc' }}
+                      onMouseLeave={(e) => { e.currentTarget.style.background = isIaSuggestedValue ? 'rgba(142,68,173,0.02)' : 'transparent' }}
                     >
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 3, flexWrap: 'wrap' }}>
@@ -290,6 +326,14 @@ export function Paso3({ evaluacionId }: { evaluacionId: number }) {
                           {isIa && (
                             <span style={{ fontSize: 10, fontWeight: 700, padding: '1px 7px', borderRadius: 10, background: '#eafaf1', color: '#1e8449', border: '1px solid #a9dfbf', flexShrink: 0 }}>
                               IA 2020-2026
+                            </span>
+                          )}
+                          {isIaSuggestedValue && (
+                            <span
+                              title="Valor sugerido por la precalificación IA — puedes modificarlo"
+                              style={{ fontSize: 10, fontWeight: 600, padding: '1px 7px', borderRadius: 10, background: '#f5eef8', color: '#6c3483', border: '1px solid #d2b4de', flexShrink: 0 }}
+                            >
+                              IA sugerido
                             </span>
                           )}
                         </div>
@@ -310,6 +354,7 @@ export function Paso3({ evaluacionId }: { evaluacionId: number }) {
                         <ScaleGroup
                           value={selected ?? null}
                           onChange={(v) => setIdMap((prev) => ({ ...prev, [sf.id]: v }))}
+                          isIaSuggested={isIaSuggestedValue}
                         />
                       </div>
                     </div>
@@ -332,7 +377,30 @@ export function Paso3({ evaluacionId }: { evaluacionId: number }) {
         </div>
       </div>
 
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 24, paddingTop: 20, borderTop: '1px solid #eaecee', flexWrap: 'wrap', gap: 12 }}>
+      {/* Pending factors list — shows incomplete factor codes as clickable links */}
+      {!allSfScored && (() => {
+        const pendingFactors = factorList.filter(({ items }) => items.some((sf) => idMap[sf.id] === undefined))
+        return pendingFactors.length > 0 ? (
+          <div style={{ marginTop: 16, background: '#fef9e7', border: '1px solid #f9e79f', borderRadius: 8, padding: '10px 14px', fontSize: 12.5 }}>
+            <span style={{ color: 'var(--orange)', fontWeight: 600, marginRight: 6 }}>
+              Factores incompletos ({pendingFactors.length}):
+            </span>
+            {pendingFactors.map(({ meta }) => (
+              <button
+                key={meta.factor_id}
+                onClick={() => setActiveFactor(meta.factor_id)}
+                style={{ fontSize: 11.5, fontWeight: 600, padding: '2px 8px', borderRadius: 6, background: 'var(--white)', color: 'var(--orange)', border: '1px solid #f9e79f', cursor: 'pointer', marginRight: 4, marginBottom: 2 }}
+                onMouseEnter={(e) => { e.currentTarget.style.background = '#fef9e7' }}
+                onMouseLeave={(e) => { e.currentTarget.style.background = 'var(--white)' }}
+              >
+                {meta.factor_codigo}
+              </button>
+            ))}
+          </div>
+        ) : null
+      })()}
+
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 16, paddingTop: 16, borderTop: '1px solid #eaecee', flexWrap: 'wrap', gap: 12 }}>
         <span style={{ fontSize: 13, color: 'var(--gray2)' }}>
           {allSfScored
             ? <span style={{ color: 'var(--green)', fontWeight: 500 }}>✓ Todos los subfactores evaluados</span>
@@ -352,17 +420,17 @@ export function Paso3({ evaluacionId }: { evaluacionId: number }) {
           </button>
           <button
             onClick={handleSave}
-            disabled={saveMutation.isPending || !allSfScored}
+            disabled={saveMutation.isPending || checkingConsistency || !allSfScored}
             style={{
               background: 'var(--dark)', color: 'var(--white)', border: 'none', borderRadius: 8,
               padding: '11px 26px', fontSize: 14, fontWeight: 500,
-              cursor: !allSfScored || saveMutation.isPending ? 'not-allowed' : 'pointer',
+              cursor: !allSfScored || saveMutation.isPending || checkingConsistency ? 'not-allowed' : 'pointer',
               opacity: !allSfScored ? 0.45 : 1,
             }}
             onMouseEnter={(e) => { if (allSfScored) e.currentTarget.style.background = 'var(--mid)' }}
             onMouseLeave={(e) => { e.currentTarget.style.background = 'var(--dark)' }}
           >
-            {saveMutation.isPending ? 'Calculando...' : 'Guardar y continuar →'}
+            {saveMutation.isPending ? 'Calculando...' : checkingConsistency ? 'Verificando consistencia...' : 'Guardar y continuar →'}
           </button>
         </div>
       </div>
@@ -384,24 +452,44 @@ function FactorProgress({ items, idMap }: { items: EvaluacionSubfactor[]; idMap:
   )
 }
 
-function ScaleGroup({ value, onChange }: { value: number | null; onChange: (v: number) => void }) {
+function ScaleGroup({
+  value,
+  onChange,
+  isIaSuggested = false,
+}: {
+  value: number | null
+  onChange: (v: number) => void
+  isIaSuggested?: boolean
+}) {
   return (
     <div style={{ display: 'flex', gap: 4 }}>
       {[1, 2, 3, 4].map((v) => {
         const sel = value === v
         const selStyle = sel ? SCALE_SELECTED[v] : null
+        // When value is IA-suggested and unmodified, override border to violet
+        const borderColor = sel
+          ? isIaSuggested ? '#8e44ad' : selStyle!.border
+          : '#d5d8dc'
+        const bgColor = sel
+          ? isIaSuggested ? '#f5eef8' : selStyle!.bg
+          : 'var(--white)'
+        const textColor = sel
+          ? isIaSuggested ? '#6c3483' : selStyle!.color
+          : 'var(--gray2)'
         return (
           <button
             key={v}
             onClick={() => onChange(v)}
+            title={sel && isIaSuggested ? 'Valor sugerido por precalificación IA — puedes modificarlo' : undefined}
             style={{
-              border: `2px solid ${sel ? selStyle!.border : '#d5d8dc'}`,
+              border: `2px solid ${borderColor}`,
               borderRadius: 7, width: 58, padding: '6px 4px',
               cursor: 'pointer', textAlign: 'center', fontSize: 10.5,
-              color: sel ? selStyle!.color : 'var(--gray2)',
-              background: sel ? selStyle!.bg : 'var(--white)',
+              color: textColor,
+              background: bgColor,
               transition: 'all 0.18s', display: 'flex', flexDirection: 'column',
               alignItems: 'center', gap: 2, flexShrink: 0,
+              boxShadow: sel && isIaSuggested ? '0 0 0 2px rgba(142,68,173,0.18)' : 'none',
             }}
             onMouseEnter={(e) => {
               if (!sel) {
@@ -433,6 +521,77 @@ function LoadingState() {
       {[1, 2, 3, 4, 5].map((i) => (
         <div key={i} style={{ background: 'var(--white)', border: '1.5px solid #eaecee', borderRadius: 'var(--radius)', height: 58, animation: 'pulse 1.5s ease-in-out infinite' }} />
       ))}
+    </div>
+  )
+}
+
+const SEV_STYLE = {
+  alta:  { color: '#922b21', bg: '#f9ebea', border: '#e6beba', label: 'Alta' },
+  media: { color: '#7d5a00', bg: '#fef9e7', border: '#f0c96a', label: 'Media' },
+  baja:  { color: '#1e8449', bg: '#eafaf1', border: '#a9dfbf', label: 'Baja' },
+} as const
+
+function ConsistencyWarningModal({
+  warnings, onContinue, onReview,
+}: {
+  warnings: InconsistenciaIA[]
+  onContinue: () => void
+  onReview: () => void
+}) {
+  return (
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 20 }}>
+      <div style={{ background: 'var(--white)', borderRadius: 14, padding: '28px 32px', maxWidth: 560, width: '100%', boxShadow: '0 20px 60px rgba(0,0,0,0.25)', maxHeight: '80vh', overflowY: 'auto' }}>
+        <div style={{ marginBottom: 18 }}>
+          <h3 style={{ fontSize: 18, fontWeight: 700, color: 'var(--dark)', marginBottom: 6 }}>
+            Inconsistencias detectadas
+          </h3>
+          <p style={{ fontSize: 13.5, color: 'var(--gray2)', lineHeight: 1.5, margin: 0 }}>
+            La IA detectó {warnings.length} posible{warnings.length !== 1 ? 's' : ''} inconsistencia{warnings.length !== 1 ? 's' : ''}.
+            Puedes revisar los subfactores o continuar con la evaluación actual.
+          </p>
+        </div>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 24 }}>
+          {warnings.map((w, i) => {
+            const sev = SEV_STYLE[w.severidad] ?? SEV_STYLE.media
+            return (
+              <div key={i} style={{ border: `1px solid ${sev.border}`, borderRadius: 8, padding: '12px 14px', background: sev.bg }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+                  <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 10, background: 'rgba(255,255,255,0.7)', color: sev.color, border: `1px solid ${sev.border}` }}>
+                    {sev.label}
+                  </span>
+                  <span style={{ fontSize: 12, fontFamily: '"DM Mono", monospace', color: sev.color, fontWeight: 600 }}>{w.factor}</span>
+                </div>
+                <p style={{ fontSize: 13, color: sev.color, margin: '0 0 4px', lineHeight: 1.5 }}>{w.descripcion}</p>
+                {w.sugerencia && (
+                  <p style={{ fontSize: 12, color: sev.color, opacity: 0.8, margin: 0, lineHeight: 1.4 }}>
+                    → {w.sugerencia}
+                  </p>
+                )}
+              </div>
+            )
+          })}
+        </div>
+
+        <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+          <button
+            onClick={onReview}
+            style={{ background: 'transparent', color: 'var(--gray1)', border: '1.5px solid #d5d8dc', borderRadius: 8, padding: '10px 20px', fontSize: 14, fontWeight: 500, cursor: 'pointer' }}
+            onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--gray4)' }}
+            onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent' }}
+          >
+            Revisar subfactores
+          </button>
+          <button
+            onClick={onContinue}
+            style={{ background: '#e67e22', color: '#fff', border: 'none', borderRadius: 8, padding: '10px 22px', fontSize: 14, fontWeight: 500, cursor: 'pointer' }}
+            onMouseEnter={(e) => { e.currentTarget.style.background = '#ca6f1e' }}
+            onMouseLeave={(e) => { e.currentTarget.style.background = '#e67e22' }}
+          >
+            Continuar de todas formas →
+          </button>
+        </div>
+      </div>
     </div>
   )
 }

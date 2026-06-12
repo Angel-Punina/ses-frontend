@@ -1,5 +1,45 @@
 import { useQuery } from '@tanstack/react-query'
-import { evaluacionesApi, type FactorRanking } from '@/api/evaluaciones'
+import { evaluacionesApi, type FactorRanking, type ReporteGeneral } from '@/api/evaluaciones'
+import { GlossaryTerm } from '@/lib/Tooltip'
+
+function exportReporteCSV(data: ReporteGeneral) {
+  const rows: string[] = []
+  rows.push('Sección,Campo,Valor')
+  rows.push(`Resumen,Total,${data.total}`)
+  rows.push(`Resumen,Completadas,${data.completadas}`)
+  rows.push(`Resumen,En progreso,${data.en_progreso}`)
+  rows.push(`Resumen,Borradores,${data.borradores}`)
+  rows.push(`Resumen,Tiempo promedio (días),${data.avg_tiempo_dias}`)
+  rows.push('')
+  rows.push('Recomendaciones,Tipo,Count')
+  for (const [k, v] of Object.entries(data.recomendaciones)) {
+    rows.push(`Recomendaciones,${k},${v}`)
+  }
+  rows.push('')
+  rows.push('FODA Global,Categoría,Count')
+  for (const [k, v] of Object.entries(data.foda_global)) {
+    rows.push(`FODA Global,${k},${v}`)
+  }
+  rows.push('')
+  rows.push('Factores,Código,Nombre,Dimensión,PM Promedio,Evaluaciones')
+  for (const f of data.factor_ranking) {
+    rows.push(`Factores,${f.codigo},"${f.nombre}",${f.dimension},${f.avg_pm.toFixed(2)},${f.count}`)
+  }
+  rows.push('')
+  rows.push('Por Mes,Mes,Completadas')
+  for (const [mes, count] of Object.entries(data.por_mes)) {
+    rows.push(`Por Mes,${mes},${count}`)
+  }
+
+  const csv = rows.join('\n')
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `reporte_guios_${new Date().toISOString().slice(0, 10)}.csv`
+  a.click()
+  URL.revokeObjectURL(url)
+}
 
 const DIM_STYLE: Record<string, { bg: string; color: string; label: string }> = {
   T: { bg: '#ebf5fb', color: '#1a5276', label: 'Tecnológica' },
@@ -51,9 +91,10 @@ function pmColor(pm: number): string {
 }
 
 export function ReportesView() {
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isFetching, refetch } = useQuery({
     queryKey: ['reporte-general'],
     queryFn: evaluacionesApi.reporteGeneral,
+    refetchOnMount: 'always',
   })
 
   if (isLoading) {
@@ -79,13 +120,37 @@ export function ReportesView() {
 
   return (
     <div>
-      <div style={{ marginBottom: 22 }}>
-        <h2 style={{ fontFamily: '"DM Sans", sans-serif', fontSize: 22, fontWeight: 700, color: 'var(--dark)', marginBottom: 3 }}>
-          Análisis y Reportes
-        </h2>
-        <p style={{ color: 'var(--gray2)', fontSize: 13 }}>
-          Estadísticas agregadas de tus evaluaciones GUIOS — factores, resultados FODA y tendencias.
-        </p>
+      <SpinKeyframe />
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 14, marginBottom: 22, flexWrap: 'wrap' }}>
+        <div>
+          <h2 style={{ fontFamily: '"DM Sans", sans-serif', fontSize: 22, fontWeight: 700, color: 'var(--dark)', marginBottom: 3 }}>
+            Análisis y Reportes
+          </h2>
+          <p style={{ color: 'var(--gray2)', fontSize: 13 }}>
+            Estadísticas agregadas de tus evaluaciones <GlossaryTerm term="GUIOS">GUIOS</GlossaryTerm> — factores, resultados <GlossaryTerm term="FODA">FODA</GlossaryTerm> y tendencias.
+          </p>
+        </div>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          <button
+            onClick={() => refetch()}
+            disabled={isFetching}
+            style={{ background: 'transparent', color: 'var(--gray2)', border: '1px solid #d5d8dc', borderRadius: 8, padding: '9px 14px', fontSize: 13, fontWeight: 500, cursor: isFetching ? 'default' : 'pointer', opacity: isFetching ? 0.5 : 1, display: 'flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap' }}
+            onMouseEnter={(e) => { if (!isFetching) e.currentTarget.style.background = 'var(--gray4)' }}
+            onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent' }}
+            title="Recargar datos"
+          >
+            <span style={{ display: 'inline-block', animation: isFetching ? 'spin 1s linear infinite' : 'none' }}>↻</span>
+            {isFetching ? 'Actualizando…' : 'Actualizar'}
+          </button>
+          {data && data.completadas > 0 && (
+            <button
+              onClick={() => exportReporteCSV(data)}
+              style={{ background: 'var(--dark)', color: 'var(--white)', border: 'none', borderRadius: 8, padding: '10px 18px', fontSize: 13, fontWeight: 500, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 7, whiteSpace: 'nowrap' }}
+              onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--mid)' }}
+              onMouseLeave={(e) => { e.currentTarget.style.background = 'var(--dark)' }}
+            >↓ Exportar CSV</button>
+          )}
+        </div>
       </div>
 
       {/* Stats */}
@@ -97,7 +162,11 @@ export function ReportesView() {
       </div>
 
       {completadas === 0 ? (
-        <EmptyState />
+        total === 0 ? (
+          <EmptyState />
+        ) : (
+          <InProgressState total={total} en_progreso={en_progreso} borradores={borradores} />
+        )
       ) : (
         <>
           {/* Fila 1: Recomendaciones + FODA global */}
@@ -132,7 +201,7 @@ export function ReportesView() {
 
             {/* FODA global */}
             <div style={{ background: 'var(--white)', border: '1px solid rgba(0,0,0,0.07)', borderRadius: 'var(--radius)', padding: '22px 24px', boxShadow: 'var(--shadow)' }}>
-              <SectionTitle>Distribución FODA acumulada</SectionTitle>
+              <SectionTitle>Distribución <GlossaryTerm term="FODA">FODA</GlossaryTerm> acumulada</SectionTitle>
               <p style={{ fontSize: 12, color: 'var(--gray3)', marginBottom: 14 }}>
                 Suma de todas las clasificaciones FODA en evaluaciones completadas.
               </p>
@@ -160,7 +229,7 @@ export function ReportesView() {
               <div style={{ background: 'var(--white)', border: '1px solid rgba(0,0,0,0.07)', borderRadius: 'var(--radius)', padding: '22px 24px', boxShadow: 'var(--shadow)' }}>
                 <SectionTitle>Factores más fuertes</SectionTitle>
                 <p style={{ fontSize: 12, color: 'var(--gray3)', marginBottom: 14 }}>
-                  PM promedio ≥ 3.0 — clasificación Fortaleza / Oportunidad.
+                  <GlossaryTerm term="PM">PM</GlossaryTerm> promedio ≥ 3.0 — clasificación Fortaleza / Oportunidad.
                 </p>
                 {topFortalezas.length === 0 ? (
                   <p style={{ color: 'var(--gray3)', fontSize: 13 }}>Sin fortalezas registradas aún.</p>
@@ -173,7 +242,7 @@ export function ReportesView() {
               <div style={{ background: 'var(--white)', border: '1px solid rgba(0,0,0,0.07)', borderRadius: 'var(--radius)', padding: '22px 24px', boxShadow: 'var(--shadow)' }}>
                 <SectionTitle>Áreas de mejora</SectionTitle>
                 <p style={{ fontSize: 12, color: 'var(--gray3)', marginBottom: 14 }}>
-                  PM promedio &lt; 3.0 — clasificación Debilidad / Amenaza.
+                  <GlossaryTerm term="PM">PM</GlossaryTerm> promedio &lt; 3.0 — clasificación Debilidad / Amenaza.
                 </p>
                 {topDebilidades.length === 0 ? (
                   <p style={{ color: 'var(--gray3)', fontSize: 13 }}>Sin debilidades registradas aún.</p>
@@ -190,15 +259,20 @@ export function ReportesView() {
             {/* Ranking completo */}
             {factor_ranking.length > 0 && (
               <div style={{ background: 'var(--white)', border: '1px solid rgba(0,0,0,0.07)', borderRadius: 'var(--radius)', padding: '22px 24px', boxShadow: 'var(--shadow)' }}>
-                <SectionTitle>Rendimiento por factor (PM promedio)</SectionTitle>
+                <SectionTitle>Rendimiento por factor (<GlossaryTerm term="PM">PM</GlossaryTerm> promedio)</SectionTitle>
                 <p style={{ fontSize: 12, color: 'var(--gray3)', marginBottom: 14 }}>
                   Puntuación Media promedio entre todas las evaluaciones completadas. Escala 1–4.
                 </p>
                 <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                   <thead>
                     <tr style={{ background: '#fafbfc', borderBottom: '1px solid #eaecee' }}>
-                      {['Factor', 'Dimensión', 'PM promedio', 'Evals'].map((h) => (
-                        <th key={h} style={{ padding: '8px 12px', fontSize: 11, fontWeight: 600, color: 'var(--gray2)', textAlign: 'left' }}>{h}</th>
+                      {[
+                        'Factor',
+                        'Dimensión',
+                        <><GlossaryTerm term="PM">PM</GlossaryTerm> promedio</>,
+                        'Evals',
+                      ].map((h, i) => (
+                        <th key={i} style={{ padding: '8px 12px', fontSize: 11, fontWeight: 600, color: 'var(--gray2)', textAlign: 'left' }}>{h}</th>
                       ))}
                     </tr>
                   </thead>
@@ -255,7 +329,7 @@ export function ReportesView() {
               {/* Leyenda PM */}
               <div style={{ marginTop: 24, borderTop: '1px solid #eaecee', paddingTop: 16 }}>
                 <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--gray2)', textTransform: 'uppercase', letterSpacing: '.5px', marginBottom: 10 }}>
-                  Escala PM
+                  Escala <GlossaryTerm term="PM">PM</GlossaryTerm>
                 </div>
                 {[
                   { range: '3.0 – 4.0', label: 'Fortaleza / Oportunidad', color: 'var(--green)' },
@@ -312,8 +386,44 @@ function EmptyState() {
   return (
     <div style={{ background: 'var(--white)', border: '1.5px dashed #d5d8dc', borderRadius: 'var(--radius)', padding: '60px 32px', textAlign: 'center', boxShadow: 'var(--shadow)' }}>
       <div style={{ width: 52, height: 52, borderRadius: 14, background: '#f2f3f4', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px', fontSize: 22, color: 'var(--gray2)' }}>⬡</div>
-      <p style={{ color: 'var(--gray2)', fontSize: 14, marginBottom: 6 }}>No hay evaluaciones completadas aún.</p>
-      <p style={{ color: 'var(--gray3)', fontSize: 12 }}>Completa tu primera evaluación GUIOS para ver el análisis aquí.</p>
+      <p style={{ color: 'var(--gray2)', fontSize: 14, marginBottom: 6 }}>No hay evaluaciones aún.</p>
+      <p style={{ color: 'var(--gray3)', fontSize: 12 }}>Crea y completa tu primera evaluación GUIOS para ver el análisis aquí.</p>
     </div>
+  )
+}
+
+function InProgressState({ total, en_progreso, borradores }: { total: number; en_progreso: number; borradores: number }) {
+  return (
+    <div style={{ background: 'var(--white)', border: '1.5px solid #aed6f1', borderRadius: 'var(--radius)', padding: '36px 32px', boxShadow: 'var(--shadow)' }}>
+      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 18 }}>
+        <div style={{ width: 48, height: 48, borderRadius: 12, background: '#ebf5fb', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22, color: 'var(--blue)', flexShrink: 0 }}>◑</div>
+        <div style={{ flex: 1 }}>
+          <p style={{ fontSize: 15, fontWeight: 600, color: 'var(--dark)', marginBottom: 6 }}>
+            Tienes {total} evaluación{total !== 1 ? 'es' : ''} en curso
+          </p>
+          <p style={{ fontSize: 13, color: 'var(--gray2)', lineHeight: 1.6, marginBottom: 16 }}>
+            El análisis de reportes se activa cuando completas al menos una evaluación (Paso 5 — Análisis FODA).
+          </p>
+          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+            {en_progreso > 0 && (
+              <span style={{ fontSize: 12, padding: '4px 12px', borderRadius: 20, background: '#fef9e7', color: 'var(--orange)', fontWeight: 500 }}>
+                {en_progreso} en progreso
+              </span>
+            )}
+            {borradores > 0 && (
+              <span style={{ fontSize: 12, padding: '4px 12px', borderRadius: 20, background: '#f2f3f4', color: 'var(--gray2)', fontWeight: 500 }}>
+                {borradores} borrador{borradores !== 1 ? 'es' : ''}
+              </span>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function SpinKeyframe() {
+  return (
+    <style>{`@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
   )
 }

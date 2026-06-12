@@ -24,6 +24,7 @@ export interface Evaluacion {
   creada: string
   actualizada: string
   paso_numero: number
+  usar_plantilla: boolean
 }
 
 export interface EvaluacionFactor {
@@ -48,11 +49,60 @@ export interface PrecalificacionInput {
   proposito?: string
   tamano_organizacion?: string
   software_reemplaza?: string
+  tipo_organizacion?: string
+  madurez_ti?: string
+  prioridad_clave?: string
+}
+
+export interface IePreviewItem {
+  factor_id: string
+  nombre: string
+  ie_propuesto: number
 }
 
 export interface PrecalificacionResponse {
-  valores_aplicados: number
+  propuestas_ie: number
   total_factores: number
+  subfactores_sugeridos: number
+  total_subfactores: number
+  preview: IePreviewItem[]
+}
+
+export interface InconsistenciaIA {
+  factor: string
+  severidad: 'alta' | 'media' | 'baja'
+  descripcion: string
+  sugerencia: string
+}
+
+export interface RiesgoAdopcion {
+  factor: string
+  severidad: 'alta' | 'media' | 'baja'
+  descripcion: string
+  mitigacion: string
+}
+
+export interface OportunidadAdopcion {
+  factor: string
+  descripcion: string
+}
+
+export interface AnalisisRiesgosResponse {
+  riesgos: RiesgoAdopcion[]
+  oportunidades: OportunidadAdopcion[]
+  resumen_ejecutivo: string
+}
+
+export interface PlantillaEvaluacion {
+  id: number
+  nombre: string
+  descripcion: string
+  tipo_organizacion: string
+  categoria_software: string
+  configuracion_ie: Record<string, number>
+  publica: boolean
+  creada_por: string | null
+  creada: string
 }
 
 export interface EvaluacionSubfactor {
@@ -67,7 +117,6 @@ export interface EvaluacionSubfactor {
   factor_nombre: string
   dimension_codigo: string
   id_valor: number | null
-  ir: number | null
   ia_sugerida: boolean
 }
 
@@ -130,6 +179,7 @@ export interface Paso6Response {
   factores: EvaluacionFactor[]
   foda_counts: { Fortaleza: number; Oportunidad: number; Debilidad: number; Amenaza: number }
   score: number
+  score_ponderado: number
 }
 
 export interface CompararFactorValue {
@@ -195,6 +245,23 @@ export interface SoftwareInfo {
   wikipedia: WikipediaInfo | null
 }
 
+export interface FactorComparativo {
+  codigo: string
+  nombre: string
+  dimension: string
+  avg_pm: number
+  pm_range: number
+  foda_distribucion: Record<string, number>
+  consistencia: 'alta' | 'media' | 'baja'
+  n_evaluaciones: number
+}
+
+export interface ComparativoSoftwareResponse {
+  evaluaciones: { id: number; nombre: string; organizacion: string; recomendacion: string; creada: string }[]
+  factores_clave: FactorComparativo[]
+  resumen_ia: string
+}
+
 export interface SubfactorProposal {
   id: number
   factor_codigo: string
@@ -207,6 +274,7 @@ export interface SubfactorProposal {
   papers_count: number
   estado: 'pendiente' | 'aprobado' | 'rechazado' | 'en_revision'
   modelo_llm: string
+  subfactor_creado_codigo: string | null
   fecha_creacion: string
   fecha_decision: string | null
   motivo_decision: string
@@ -232,12 +300,24 @@ export interface SubfactorObsolescenceReport {
   fecha_decision: string | null
 }
 
+export interface ObsolescenceListResponse {
+  results: SubfactorObsolescenceReport[]
+  summary: {
+    total_analizados: number
+    pendientes: number
+    vigentes_ia: number
+  }
+}
+
 export const evaluacionesApi = {
   list: () =>
     apiClient.get<Evaluacion[]>('/evaluaciones/').then((r) => r.data),
 
-  create: (data: Pick<Evaluacion, 'nombre' | 'software' | 'organizacion' | 'descripcion' | 'categoria'>) =>
+  create: (data: Pick<Evaluacion, 'nombre' | 'software' | 'organizacion' | 'descripcion' | 'categoria' | 'usar_plantilla'>) =>
     apiClient.post<Evaluacion>('/evaluaciones/', data).then((r) => r.data),
+
+  update: (id: number, data: Partial<Pick<Evaluacion, 'nombre' | 'software' | 'organizacion' | 'descripcion' | 'categoria'>>) =>
+    apiClient.patch<Evaluacion>(`/evaluaciones/${id}/`, data).then((r) => r.data),
 
   get: (id: number) =>
     apiClient.get<Evaluacion>(`/evaluaciones/${id}/`).then((r) => r.data),
@@ -311,17 +391,50 @@ export const evaluacionesApi = {
   proposalReview: (id: number, accion: 'aprobar' | 'rechazar', motivo?: string) =>
     apiClient.post(`/ia/proposals/${id}/review/`, { accion, motivo }).then((r) => r.data),
 
-  generarPropuestas: (factor?: string, max = 2) =>
+  generarPropuestas: (factor?: string, max = 2, dimension?: string) =>
     apiClient
-      .post<{ detail: string; factores: number }>('/ia/proposals/generar/', { factor, max })
+      .post<{ detail: string; factores: number }>('/ia/proposals/generar/', {
+        ...(factor ? { factor } : {}),
+        ...(dimension ? { dimension } : {}),
+        max,
+      })
       .then((r) => r.data),
 
-  obsolescenceReports: () =>
-    apiClient.get<SubfactorObsolescenceReport[]>('/ia/obsolescence/').then((r) => r.data),
-
-  generateObsolescence: (subfactorId?: number) =>
+  limpiarPropuestas: (dimension?: string) =>
     apiClient
-      .post<{ detail: string; subfactores: number }>('/ia/obsolescence/generate/', subfactorId ? { subfactor_id: subfactorId } : {})
+      .delete<{ detail: string; eliminadas: number }>('/ia/proposals/limpiar/', {
+        data: dimension ? { dimension } : {},
+      })
+      .then((r) => r.data),
+
+  proposalProgress: () =>
+    apiClient
+      .get<{ running: boolean; total: number; completed: number; porcentaje: number }>('/ia/proposals/progress/')
+      .then((r) => r.data),
+
+  obsolescenceReports: (verTodos = false) =>
+    apiClient
+      .get<ObsolescenceListResponse>('/ia/obsolescence/', { params: verTodos ? { ver_todos: '1' } : {} })
+      .then((r) => r.data),
+
+  generateObsolescence: (subfactorId?: number, dimension?: string) =>
+    apiClient
+      .post<{ detail: string; subfactores: number }>('/ia/obsolescence/generate/', {
+        ...(subfactorId ? { subfactor_id: subfactorId } : {}),
+        ...(dimension ? { dimension } : {}),
+      })
+      .then((r) => r.data),
+
+  limpiarObsolescencia: (dimension?: string) =>
+    apiClient
+      .delete<{ detail: string; eliminadas: number }>('/ia/obsolescence/limpiar/', {
+        data: dimension ? { dimension } : {},
+      })
+      .then((r) => r.data),
+
+  obsolescenceProgress: () =>
+    apiClient
+      .get<{ running: boolean; total: number; completed: number; porcentaje: number }>('/ia/obsolescence/progress/')
       .then((r) => r.data),
 
   obsolescenceReview: (id: number, accion: 'confirmar' | 'desestimar', marcarInactivo = false, motivo = '') =>
@@ -332,4 +445,43 @@ export const evaluacionesApi = {
 
   precalificacion: (id: number, data: PrecalificacionInput) =>
     apiClient.post<PrecalificacionResponse>(`/evaluaciones/${id}/precalificacion/`, data).then((r) => r.data),
+
+  precalificacionPreview: (id: number) =>
+    apiClient.get<{ preview: IePreviewItem[] }>(`/evaluaciones/${id}/precalificacion-preview/`).then((r) => r.data),
+
+  precalificacionAccept: (id: number) =>
+    apiClient.post<{ aplicados: number }>(`/evaluaciones/${id}/precalificacion-accept/`, {}).then((r) => r.data),
+
+  compartidas: () =>
+    apiClient.get<Evaluacion[]>('/evaluaciones/compartidas/').then((r) => r.data),
+
+  compartirList: (evalId: number) =>
+    apiClient.get<{ id: number; nombre: string; apellido: string; correo: string }[]>(`/evaluaciones/${evalId}/compartir/`).then((r) => r.data),
+
+  compartirRemove: (evalId: number, uid: number) =>
+    apiClient.delete(`/evaluaciones/${evalId}/compartir/${uid}/`),
+
+  plantillas: () =>
+    apiClient.get<PlantillaEvaluacion[]>('/evaluaciones/plantillas/').then((r) => r.data),
+
+  createPlantilla: (data: Omit<PlantillaEvaluacion, 'id' | 'creada_por' | 'creada'>) =>
+    apiClient.post<{ id: number; nombre: string }>('/evaluaciones/plantillas/', data).then((r) => r.data),
+
+  deletePlantilla: (id: number) =>
+    apiClient.delete(`/evaluaciones/plantillas/${id}/`),
+
+  aplicarPlantilla: (evalId: number, plantillaId: number) =>
+    apiClient.post<{ aplicados: number }>(`/evaluaciones/${evalId}/aplicar-plantilla/`, { plantilla_id: plantillaId }).then((r) => r.data),
+
+  snapshots: (evalId: number) =>
+    apiClient.get<Array<{ paso: string; datos: unknown; creado: string }>>(`/evaluaciones/${evalId}/snapshots/`).then((r) => r.data),
+
+  analizarConsistencia: (evalId: number) =>
+    apiClient.post<{ inconsistencias: InconsistenciaIA[] }>(`/evaluaciones/${evalId}/analizar-consistencia/`, {}).then((r) => r.data),
+
+  analizarRiesgos: (evalId: number) =>
+    apiClient.get<AnalisisRiesgosResponse>(`/evaluaciones/${evalId}/analizar-riesgos/`).then((r) => r.data),
+
+  compararSoftware: (software: string) =>
+    apiClient.get<ComparativoSoftwareResponse>(`/evaluaciones/comparar-software/`, { params: { software } }).then((r) => r.data),
 }

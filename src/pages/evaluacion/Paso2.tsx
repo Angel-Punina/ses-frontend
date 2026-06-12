@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { evaluacionesApi, type EvaluacionFactor } from '@/api/evaluaciones'
+import { GlossaryTerm } from '@/lib/Tooltip'
 
 const DIM_STYLE: Record<string, { bg: string; color: string; label: string }> = {
   T: { bg: '#ebf5fb', color: '#1a5276', label: 'Tecnológica' },
@@ -109,17 +110,69 @@ export function Paso2({ evaluacionId }: { evaluacionId: number }) {
         </div>
       </div>
 
+      {/* Bulk actions */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14, flexWrap: 'wrap' }}>
+        <span style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--gray2)', textTransform: 'uppercase', letterSpacing: '.04em', marginRight: 4 }}>Acciones rápidas:</span>
+        {(
+          [
+            {
+              id: 'incluir',
+              label: 'Incluir todos' as React.ReactNode,
+              onClick: () => {
+                const next: Record<number, boolean> = {}
+                toggleables.forEach((f) => { next[f.factor] = true })
+                autoExcluidos.forEach((f) => { next[f.factor] = false })
+                setRelMap(next)
+              },
+            },
+            {
+              id: 'excluir',
+              label: 'Excluir todos' as React.ReactNode,
+              onClick: () => {
+                const next: Record<number, boolean> = {}
+                factors.forEach((f) => { next[f.factor] = false })
+                setRelMap(next)
+              },
+            },
+            {
+              id: 'is3',
+              label: (<><GlossaryTerm term="IS">Solo IS</GlossaryTerm>≥3</>) as React.ReactNode,
+              onClick: () => {
+                const next: Record<number, boolean> = {}
+                factors.forEach((f) => {
+                  next[f.factor] = !isAutoExcluded(f) && f.factor_is >= 3
+                })
+                setRelMap(next)
+              },
+            },
+          ] as { id: string; label: React.ReactNode; onClick: () => void }[]
+        ).map((action) => (
+          <button
+            key={action.id}
+            onClick={action.onClick}
+            style={{
+              padding: '5px 14px', borderRadius: 8, fontSize: 12, fontWeight: 500, cursor: 'pointer',
+              background: 'var(--white)', color: 'var(--gray1)', border: '1.5px solid #d5d8dc', transition: 'all 0.12s',
+            }}
+            onMouseEnter={(e) => { e.currentTarget.style.background = '#f2f3f4'; e.currentTarget.style.borderColor = '#c5c8cc' }}
+            onMouseLeave={(e) => { e.currentTarget.style.background = 'var(--white)'; e.currentTarget.style.borderColor = '#d5d8dc' }}
+          >
+            {action.label}
+          </button>
+        ))}
+      </div>
+
       {/* Info box */}
       <div style={{ background: '#fef9e7', border: '1px solid #f0b27a', borderRadius: 8, padding: '12px 14px', fontSize: 13, color: 'var(--orange)', display: 'flex', alignItems: 'flex-start', gap: 10, marginBottom: autoExcluidos.length > 0 ? 12 : 24, lineHeight: 1.5 }}>
         <span style={{ fontSize: 16, flexShrink: 0 }}>⚠</span>
-        <span>Excluir demasiados factores puede reducir la precisión del análisis FODA. Se recomienda mantener al menos 10 factores activos.</span>
+        <span>Excluir demasiados factores puede reducir la precisión del análisis <GlossaryTerm term="FODA">FODA</GlossaryTerm>. Se recomienda mantener al menos 10 factores activos.</span>
       </div>
       {autoExcluidos.length > 0 && (
         <div style={{ background: '#f9f9f9', border: '1px solid #eaecee', borderRadius: 8, padding: '12px 14px', fontSize: 13, color: 'var(--gray2)', display: 'flex', alignItems: 'flex-start', gap: 10, marginBottom: 24, lineHeight: 1.5 }}>
           <span style={{ fontSize: 16, flexShrink: 0 }}>⊘</span>
           <span>
-            <strong style={{ color: 'var(--gray1)' }}>{autoExcluidos.length} factor{autoExcluidos.length !== 1 ? 'es' : ''} excluido{autoExcluidos.length !== 1 ? 's' : ''} automáticamente</strong> (IR=1).
-            Esto ocurre cuando la importancia que asignaste (ID) combinada con la importancia del sistema (IS) produce un valor de importancia relativa igual a 1 — el factor no puede incluirse en la evaluación según la metodología GUIOS.
+            <strong style={{ color: 'var(--gray1)' }}>{autoExcluidos.length} factor{autoExcluidos.length !== 1 ? 'es' : ''} excluido{autoExcluidos.length !== 1 ? 's' : ''} automáticamente</strong> (<GlossaryTerm term="IR">IR</GlossaryTerm>=1).
+            Esto ocurre cuando la importancia que asignaste (<GlossaryTerm term="ID">ID</GlossaryTerm>) combinada con la importancia del sistema (<GlossaryTerm term="IS">IS</GlossaryTerm>) produce un valor de importancia relativa igual a 1 — el factor no puede incluirse en la evaluación según la metodología <GlossaryTerm term="GUIOS">GUIOS</GlossaryTerm>.
           </span>
         </div>
       )}
@@ -181,15 +234,37 @@ export function Paso2({ evaluacionId }: { evaluacionId: number }) {
             <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--red)' }}>✕ Factores excluidos ({excluidoList.length})</span>
           </div>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-            {excluidoList.map((f) => (
-              <span key={f.factor} style={{ fontSize: 12, color: 'var(--red)', background: 'rgba(146,43,33,0.08)', border: '1px solid rgba(146,43,33,0.2)', padding: '3px 10px', borderRadius: 16 }}>
-                {f.factor_codigo} · {f.factor_nombre}
-              </span>
-            ))}
+            {excluidoList.map((f) => {
+              const locked = isAutoExcluded(f)
+              return (
+                <span
+                  key={f.factor}
+                  title={locked ? 'IR=1: exclusión permanente por la metodología GUIOS' : 'Excluido manualmente — haz clic arriba para reactivarlo'}
+                  style={{ fontSize: 12, color: locked ? 'var(--gray2)' : 'var(--red)', background: locked ? 'rgba(0,0,0,0.04)' : 'rgba(146,43,33,0.08)', border: `1px solid ${locked ? '#d5d8dc' : 'rgba(146,43,33,0.2)'}`, padding: '3px 10px', borderRadius: 16 }}
+                >
+                  {locked ? '⊘' : '✕'} {f.factor_codigo} · {f.factor_nombre}
+                </span>
+              )
+            })}
           </div>
-          <p style={{ fontSize: 12, color: 'var(--gray2)', marginTop: 10, fontStyle: 'italic' }}>
-            Haz clic en los factores de arriba para reactivarlos.
-          </p>
+          {(() => {
+            const manuales = excluidoList.filter((f) => !isAutoExcluded(f))
+            const automaticos = excluidoList.filter(isAutoExcluded)
+            return (
+              <div style={{ marginTop: 10, display: 'flex', flexDirection: 'column', gap: 4 }}>
+                {manuales.length > 0 && (
+                  <p style={{ fontSize: 12, color: 'var(--gray2)', fontStyle: 'italic', margin: 0 }}>
+                    {manuales.length === 1 ? 'El factor marcado con ✕' : `Los ${manuales.length} factores marcados con ✕`} pueden reactivarse haciendo clic sobre ellos.
+                  </p>
+                )}
+                {automaticos.length > 0 && (
+                  <p style={{ fontSize: 12, color: 'var(--gray2)', fontStyle: 'italic', margin: 0 }}>
+                    {automaticos.length === 1 ? 'El factor marcado con ⊘ tiene IR=1' : `Los ${automaticos.length} factores marcados con ⊘ tienen IR=1`} y no pueden reactivarse. Para incluirlos, vuelve al Paso 1 y aumenta la importancia que les asignaste.
+                  </p>
+                )}
+              </div>
+            )
+          })()}
         </div>
       )}
 

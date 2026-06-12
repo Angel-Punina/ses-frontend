@@ -1,6 +1,40 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { usersApi, type CreateUserData } from '@/api/users'
+import { usersApi, type CreateUserData, type AuditLogEntry } from '@/api/users'
+
+function DiffRow({ log }: { log: AuditLogEntry }) {
+  const hasDiff = log.valor_anterior !== undefined || log.valor_nuevo !== undefined
+  if (!hasDiff) return null
+  const fmtJson = (v: unknown) => {
+    if (v === null || v === undefined) return '—'
+    if (typeof v === 'object') return JSON.stringify(v, null, 2)
+    return String(v)
+  }
+  return (
+    <tr>
+      <td colSpan={5} style={{ padding: '0 16px 10px 48px', background: '#fafbfc', borderBottom: '1px solid #f5f6f7' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginTop: 4 }}>
+          {log.valor_anterior !== undefined && (
+            <div>
+              <div style={{ fontSize: 10.5, fontWeight: 600, color: '#922b21', textTransform: 'uppercase', letterSpacing: '.04em', marginBottom: 4 }}>Antes</div>
+              <pre style={{ margin: 0, padding: '8px 10px', background: '#f9ebea', border: '1px solid #f5c6c2', borderRadius: 6, fontSize: 11.5, color: '#922b21', fontFamily: '"DM Mono", monospace', overflowX: 'auto', whiteSpace: 'pre-wrap', wordBreak: 'break-all' }}>
+                {fmtJson(log.valor_anterior)}
+              </pre>
+            </div>
+          )}
+          {log.valor_nuevo !== undefined && (
+            <div>
+              <div style={{ fontSize: 10.5, fontWeight: 600, color: '#1a5e31', textTransform: 'uppercase', letterSpacing: '.04em', marginBottom: 4 }}>Después</div>
+              <pre style={{ margin: 0, padding: '8px 10px', background: '#eafaf1', border: '1px solid #a9dfbf', borderRadius: 6, fontSize: 11.5, color: '#1a5e31', fontFamily: '"DM Mono", monospace', overflowX: 'auto', whiteSpace: 'pre-wrap', wordBreak: 'break-all' }}>
+                {fmtJson(log.valor_nuevo)}
+              </pre>
+            </div>
+          )}
+        </div>
+      </td>
+    </tr>
+  )
+}
 
 function downloadBlob(blob: Blob, filename: string) {
   const url = URL.createObjectURL(blob)
@@ -220,50 +254,7 @@ export function AdminView() {
             >↓ Exportar CSV</button>
           </div>
 
-          <div style={{ background: 'var(--white)', border: '1px solid rgba(0,0,0,0.07)', borderRadius: 'var(--radius)', boxShadow: 'var(--shadow)', overflow: 'hidden' }}>
-            {logsLoading ? (
-              <div style={{ padding: 32, textAlign: 'center', color: 'var(--gray2)', fontSize: 13 }}>Cargando...</div>
-            ) : logs.length === 0 ? (
-              <div style={{ padding: 32, textAlign: 'center', color: 'var(--gray2)', fontSize: 13 }}>Sin registros para los filtros seleccionados</div>
-            ) : (
-              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                <thead>
-                  <tr style={{ background: '#fafbfc', borderBottom: '1px solid #eaecee' }}>
-                    {['#', 'Usuario', 'Acción', 'IP', 'Fecha'].map((h) => (
-                      <th key={h} style={{ padding: '10px 16px', fontSize: 11.5, fontWeight: 600, color: 'var(--gray2)', textAlign: 'left', whiteSpace: 'nowrap' }}>{h}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {logs.map((log) => {
-                    const { method, path, color } = fmtAction(log.accion)
-                    return (
-                      <tr key={log.id} style={{ borderBottom: '1px solid #f5f6f7' }}
-                        onMouseEnter={(e) => { (e.currentTarget as HTMLTableRowElement).style.background = '#fafbfc' }}
-                        onMouseLeave={(e) => { (e.currentTarget as HTMLTableRowElement).style.background = 'transparent' }}
-                      >
-                        <td style={{ padding: '10px 16px', fontSize: 11.5, color: 'var(--gray3)', fontFamily: '"DM Mono", monospace' }}>{log.id}</td>
-                        <td style={{ padding: '10px 16px' }}>
-                          <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--dark)' }}>{log.usuario_nombre}</span>
-                          {log.usuario_correo && (
-                            <span style={{ display: 'block', fontSize: 11.5, color: 'var(--gray2)' }}>{log.usuario_correo}</span>
-                          )}
-                        </td>
-                        <td style={{ padding: '10px 16px' }}>
-                          <span style={{ fontSize: 10.5, fontFamily: '"DM Mono", monospace', fontWeight: 700, color, marginRight: 8 }}>{method}</span>
-                          <span style={{ fontSize: 12, color: 'var(--gray2)', fontFamily: '"DM Mono", monospace' }}>{path}</span>
-                        </td>
-                        <td style={{ padding: '10px 16px', fontSize: 12, color: 'var(--gray2)', fontFamily: '"DM Mono", monospace' }}>{log.ip ?? '—'}</td>
-                        <td style={{ padding: '10px 16px', fontSize: 12, color: 'var(--gray2)', whiteSpace: 'nowrap' }}>
-                          {new Date(log.timestamp).toLocaleString('es-ES', { dateStyle: 'short', timeStyle: 'short' })}
-                        </td>
-                      </tr>
-                    )
-                  })}
-                </tbody>
-              </table>
-            )}
-          </div>
+          <AuditLogTable logs={logs} isLoading={logsLoading} />
         </div>
       )}
 
@@ -275,6 +266,79 @@ export function AdminView() {
           loading={createMutation.isPending}
           error={createMutation.isError ? 'Error al crear el usuario. Verifica los datos.' : ''}
         />
+      )}
+    </div>
+  )
+}
+
+function AuditLogTable({ logs, isLoading }: { logs: AuditLogEntry[]; isLoading: boolean }) {
+  const [expanded, setExpanded] = useState<Set<number>>(new Set())
+
+  const toggle = (id: number) => {
+    setExpanded((prev) => {
+      const next = new Set(prev)
+      next.has(id) ? next.delete(id) : next.add(id)
+      return next
+    })
+  }
+
+  return (
+    <div style={{ background: 'var(--white)', border: '1px solid rgba(0,0,0,0.07)', borderRadius: 'var(--radius)', boxShadow: 'var(--shadow)', overflow: 'hidden' }}>
+      {isLoading ? (
+        <div style={{ padding: 32, textAlign: 'center', color: 'var(--gray2)', fontSize: 13 }}>Cargando...</div>
+      ) : logs.length === 0 ? (
+        <div style={{ padding: 32, textAlign: 'center', color: 'var(--gray2)', fontSize: 13 }}>Sin registros para los filtros seleccionados</div>
+      ) : (
+        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+          <thead>
+            <tr style={{ background: '#fafbfc', borderBottom: '1px solid #eaecee' }}>
+              {['#', 'Usuario', 'Acción', 'IP', 'Fecha'].map((h) => (
+                <th key={h} style={{ padding: '10px 16px', fontSize: 11.5, fontWeight: 600, color: 'var(--gray2)', textAlign: 'left', whiteSpace: 'nowrap' }}>{h}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {logs.map((log) => {
+              const { method, path, color } = fmtAction(log.accion)
+              const hasDiff = log.valor_anterior !== undefined || log.valor_nuevo !== undefined
+              const isExpanded = expanded.has(log.id)
+              return (
+                <>
+                  <tr key={log.id}
+                    style={{ borderBottom: (!hasDiff || !isExpanded) ? '1px solid #f5f6f7' : 'none', cursor: hasDiff ? 'pointer' : 'default', transition: 'background 0.12s' }}
+                    onClick={() => hasDiff && toggle(log.id)}
+                    onMouseEnter={(e) => { (e.currentTarget as HTMLTableRowElement).style.background = '#fafbfc' }}
+                    onMouseLeave={(e) => { (e.currentTarget as HTMLTableRowElement).style.background = 'transparent' }}
+                  >
+                    <td style={{ padding: '10px 16px', fontSize: 11.5, color: 'var(--gray3)', fontFamily: '"DM Mono", monospace' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        {hasDiff && (
+                          <span style={{ fontSize: 10, color: 'var(--gray3)', transition: 'transform 0.15s', display: 'inline-block', transform: isExpanded ? 'rotate(90deg)' : 'rotate(0deg)' }}>▶</span>
+                        )}
+                        {log.id}
+                      </div>
+                    </td>
+                    <td style={{ padding: '10px 16px' }}>
+                      <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--dark)' }}>{log.usuario_nombre}</span>
+                      {log.usuario_correo && (
+                        <span style={{ display: 'block', fontSize: 11.5, color: 'var(--gray2)' }}>{log.usuario_correo}</span>
+                      )}
+                    </td>
+                    <td style={{ padding: '10px 16px' }}>
+                      <span style={{ fontSize: 10.5, fontFamily: '"DM Mono", monospace', fontWeight: 700, color, marginRight: 8 }}>{method}</span>
+                      <span style={{ fontSize: 12, color: 'var(--gray2)', fontFamily: '"DM Mono", monospace' }}>{path}</span>
+                    </td>
+                    <td style={{ padding: '10px 16px', fontSize: 12, color: 'var(--gray2)', fontFamily: '"DM Mono", monospace' }}>{log.ip ?? '—'}</td>
+                    <td style={{ padding: '10px 16px', fontSize: 12, color: 'var(--gray2)', whiteSpace: 'nowrap' }}>
+                      {new Date(log.timestamp).toLocaleString('es-ES', { dateStyle: 'short', timeStyle: 'short' })}
+                    </td>
+                  </tr>
+                  {hasDiff && isExpanded && <DiffRow key={`diff-${log.id}`} log={log} />}
+                </>
+              )
+            })}
+          </tbody>
+        </table>
       )}
     </div>
   )

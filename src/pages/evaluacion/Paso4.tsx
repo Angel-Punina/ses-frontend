@@ -1,6 +1,7 @@
 import { useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { evaluacionesApi, type EvaluacionFactor } from '@/api/evaluaciones'
+import { GlossaryTerm } from '@/lib/Tooltip'
 
 const DIM_STYLE: Record<string, { bg: string; color: string; label: string }> = {
   T: { bg: '#ebf5fb', color: '#1a5276', label: 'Tecnológica' },
@@ -53,8 +54,8 @@ export function Paso4({ evaluacionId }: { evaluacionId: number }) {
           Paso 4 — Puntuación media por factor
         </h3>
         <p style={{ color: 'var(--gray2)', fontSize: 13.5, lineHeight: 1.6, maxWidth: 680 }}>
-          El sistema ha calculado la <strong style={{ color: 'var(--dark)' }}>Puntuación Media (PM)</strong> de cada factor
-          a partir de tus evaluaciones. Revisa los resultados antes de continuar con la clasificación FODA.
+          El sistema ha calculado la <strong style={{ color: 'var(--dark)' }}>Puntuación Media (<GlossaryTerm term="PM">PM</GlossaryTerm>)</strong> de cada factor
+          a partir de tus evaluaciones. Revisa los resultados antes de continuar con la clasificación <GlossaryTerm term="FODA">FODA</GlossaryTerm>.
         </p>
       </div>
 
@@ -77,7 +78,7 @@ export function Paso4({ evaluacionId }: { evaluacionId: number }) {
       {/* Info box */}
       <div style={{ background: '#fef9e7', border: '1px solid #f0b27a', borderRadius: 8, padding: '12px 14px', fontSize: 13, color: 'var(--orange)', display: 'flex', alignItems: 'flex-start', gap: 10, marginBottom: 24, lineHeight: 1.5 }}>
         <span style={{ fontSize: 16, flexShrink: 0 }}>⚠</span>
-        <span>Esta clasificación es provisional (sin soporte externo). En el siguiente paso podrás indicar qué factores tienen apoyo externo, lo que puede reclasificar Fortalezas en Oportunidades y Debilidades en Amenazas.</span>
+        <span>Esta clasificación <GlossaryTerm term="FODA">FODA</GlossaryTerm> es provisional (sin soporte externo). En el siguiente paso podrás indicar qué factores tienen apoyo externo, lo que puede reclasificar Fortalezas en Oportunidades y Debilidades en Amenazas.</span>
       </div>
 
       {/* Factors by dimension */}

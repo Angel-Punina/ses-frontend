@@ -115,7 +115,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
   const show = useCallback((type: ToastType, title: string, message?: string) => {
     const id = ++nextId.current
     dispatch({ type: 'ADD', toast: { id, type, title, message } })
-    setTimeout(() => dispatch({ type: 'REMOVE', id }), type === 'error' ? 8000 : 5000)
+    setTimeout(() => dispatch({ type: 'REMOVE', id }), type === 'error' ? 5000 : 3000)
   }, [])
 
   const remove = useCallback((id: number) => {

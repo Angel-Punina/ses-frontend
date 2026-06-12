@@ -236,8 +236,8 @@ export function ContextoIAPanel({ evaluacionId, factorCatalogId, factorNombre }:
                   </button>
                   {showPapers && (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                      {data.fuentes.map((f: IaFuente, idx: number) => (
-                        <PaperCard key={idx} fuente={f} num={idx + 1} />
+                      {[...data.fuentes].sort((a, b) => (b.citas || 0) - (a.citas || 0)).map((f: IaFuente, idx: number) => (
+                        <PaperCard key={f.titulo || idx} fuente={f} num={idx + 1} />
                       ))}
                     </div>
                   )}

@@ -19,6 +19,8 @@ export interface AuditLogEntry {
   accion: string
   ip: string | null
   timestamp: string
+  valor_anterior?: unknown
+  valor_nuevo?: unknown
 }
 
 export interface CreateUserData {
