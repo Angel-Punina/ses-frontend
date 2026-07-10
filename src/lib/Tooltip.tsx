@@ -2,12 +2,12 @@ import { useState } from 'react'
 
 export const GUIOS_GLOSSARY: Record<string, { full: string; desc: string }> = {
   IE: {
-    full: 'Importancia Estratégica',
-    desc: 'Valor que tú asignas (1–4) según cuánto importa este factor para la estrategia de tu organización.',
+    full: 'Importancia del Experto',
+    desc: 'Valor precalculado a partir de encuesta a 57 expertos FLOSS. Resultado: IE=3 (Importante) para todos los factores. Fijo e inmutable en el sistema.',
   },
   IL: {
     full: 'Importancia de la Literatura',
-    desc: 'Valor fijo derivado de 57 artículos científicos y encuesta a 57 expertos de la metodología GUIOS. No editable.',
+    desc: 'Calculada a partir del ratio citas/subfactores de cada factor en 54 artículos científicos (2008-2019). IL=4 = factor muy citado; IL=1 = factor poco citado. Fija e inmutable.',
   },
   IS: {
     full: 'Importancia Sugerida',
@@ -15,7 +15,7 @@ export const GUIOS_GLOSSARY: Record<string, { full: string; desc: string }> = {
   },
   ID: {
     full: 'Importancia del Decisor',
-    desc: 'El valor IE que tú asignas al factor. Se combina con el IS del sistema para calcular la Importancia Relativa (IR).',
+    desc: 'El valor que tú asignas a cada factor (1=Irrelevante, 2=Opcional, 3=Importante, 4=Fundamental). Se combina con el IS del sistema para calcular la Importancia Relativa (IR).',
   },
   IR: {
     full: 'Importancia Relativa',
@@ -27,7 +27,7 @@ export const GUIOS_GLOSSARY: Record<string, { full: string; desc: string }> = {
   },
   PS: {
     full: 'Puntuación de Subfactor',
-    desc: 'Valor asignado a cada subfactor: 1 = No cumple, 2 = No sé / Sin información, 3 = Cumple parcialmente, 4 = Cumple totalmente.',
+    desc: 'Valor asignado a cada subfactor: 1 = No cumple el requisito, 2 = No sé, 3 = Cumple parcialmente el requisito, 4 = Cumple el requisito.',
   },
   FODA: {
     full: 'Fortalezas · Oportunidades · Debilidades · Amenazas',
@@ -35,7 +35,7 @@ export const GUIOS_GLOSSARY: Record<string, { full: string; desc: string }> = {
   },
   GUIOS: {
     full: 'Guía de Evaluación para la Implantación de Open Source',
-    desc: 'Metodología científica basada en la tesis doctoral de Víctor Hugo Rea Sánchez (Universidad de Sevilla, 2022). Formaliza la decisión de adoptar software libre con 57 factores validados.',
+    desc: 'Metodología científica basada en la tesis doctoral de Víctor Hugo Rea Sánchez (Universidad de Sevilla, 2022). Formaliza la adopción de software libre con 18 factores y 61 subfactores, validados por 57 expertos FLOSS y 54 artículos científicos.',
   },
 }
 

@@ -6,7 +6,7 @@ import { ContextoIAPanel } from './ContextoIAPanel'
 
 const ID_LABELS: Record<number, { label: string; short: string }> = {
   1: { label: 'No cumple', short: 'No' },
-  2: { label: 'Sin información', short: 'S/I' },
+  2: { label: 'No sé', short: 'N/S' },
   3: { label: 'Parcialmente', short: 'Parc.' },
   4: { label: 'Cumple', short: 'Sí' },
 }
@@ -191,7 +191,7 @@ export function Paso3({ evaluacionId }: { evaluacionId: number }) {
         </h3>
         <p style={{ color: 'var(--gray2)', fontSize: 13.5, lineHeight: 1.6, maxWidth: 680, margin: 0 }}>
           Para cada subfactor, indica en qué medida el software cumple ese criterio.
-          Usa la escala: <strong>1</strong> = No cumple · <strong>2</strong> = Sin información · <strong>3</strong> = Parcialmente · <strong>4</strong> = Cumple.
+          Usa la escala: <strong>1</strong> = No cumple · <strong>2</strong> = No sé · <strong>3</strong> = Cumple parcialmente · <strong>4</strong> = Cumple.
         </p>
       </div>
 

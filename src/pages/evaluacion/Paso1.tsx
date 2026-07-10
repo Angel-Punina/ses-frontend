@@ -5,10 +5,10 @@ import { evaluacionesApi, type EvaluacionFactor, type IaContextoResponse, CATEGO
 import { GlossaryTerm } from '@/lib/Tooltip'
 
 const ID_LABELS: Record<number, { label: string; short: string }> = {
-  1: { label: 'Sin importancia', short: 'Nula' },
-  2: { label: 'Baja importancia', short: 'Baja' },
-  3: { label: 'Importancia media', short: 'Media' },
-  4: { label: 'Alta importancia', short: 'Alta' },
+  1: { label: 'Irrelevante', short: 'Irrel.' },
+  2: { label: 'Opcional', short: 'Opc.' },
+  3: { label: 'Importante', short: 'Imp.' },
+  4: { label: 'Fundamental', short: 'Fund.' },
 }
 
 
@@ -149,7 +149,7 @@ export function Paso1({ evaluacionId, usarPlantilla = false }: { evaluacionId: n
       {plantillaApplied && (
         <div style={{ background: '#eafaf1', border: '1px solid #a9dfbf', borderRadius: 8, padding: '11px 14px', fontSize: 13, color: '#1e8449', display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
           <span style={{ fontSize: 16 }}>✓</span>
-          <span>Plantilla aplicada — los valores de IE han sido cargados. Revisa y ajusta según tu criterio.</span>
+          <span>Plantilla aplicada — los valores de importancia (ID) han sido cargados. Revisa y ajusta según tu criterio.</span>
           <button onClick={() => setPlantillaApplied(false)} style={{ marginLeft: 'auto', background: 'none', border: 'none', cursor: 'pointer', color: '#1e8449', fontSize: 14, padding: '2px 4px' }}>✕</button>
         </div>
       )}
@@ -222,9 +222,9 @@ export function Paso1({ evaluacionId, usarPlantilla = false }: { evaluacionId: n
       <div style={{ background: '#ebf5fb', border: '1px solid #aed6f1', borderRadius: 8, padding: '12px 14px', fontSize: 13, color: 'var(--blue)', display: 'flex', alignItems: 'flex-start', gap: 10, marginBottom: 20, lineHeight: 1.5 }}>
         <span style={{ fontSize: 16, flexShrink: 0 }}>ℹ</span>
         <span>
-          Valora del <strong>1 (Sin importancia)</strong> al <strong>4 (Alta importancia)</strong>.{' '}
+          Valora del <strong>1 (Irrelevante)</strong> al <strong>4 (Fundamental)</strong>.{' '}
           El <GlossaryTerm term="IS">IS</GlossaryTerm> (Importancia Sugerida) está predefinido por la metodología <GlossaryTerm term="GUIOS">GUIOS</GlossaryTerm>.{' '}
-          Si asignas <GlossaryTerm term="IE">IE</GlossaryTerm>=1 a un factor con <GlossaryTerm term="IS">IS</GlossaryTerm>=1 o IS=2,
+          Si asignas <GlossaryTerm term="ID">ID</GlossaryTerm>=1 (Irrelevante) a un factor con <GlossaryTerm term="IS">IS</GlossaryTerm>=1 o IS=2,
           ese factor quedará excluido automáticamente (<GlossaryTerm term="IR">IR</GlossaryTerm>=1).
         </span>
       </div>
