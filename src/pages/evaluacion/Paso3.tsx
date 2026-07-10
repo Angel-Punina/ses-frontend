@@ -280,7 +280,7 @@ export function Paso3({ evaluacionId }: { evaluacionId: number }) {
               <div style={{ height: '100%', background: pct === 100 ? 'var(--green)' : 'var(--light)', borderRadius: 99, width: `${pct}%`, transition: 'width 0.4s' }} />
             </div>
             <div style={{ fontSize: 10, color: 'var(--gray2)' }}>{pct}% completado</div>
-          </div>
+          </div>}
         </div>
 
         {/* Right panel — subfactors for active factor */}
