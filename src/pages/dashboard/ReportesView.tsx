@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { evaluacionesApi, type FactorRanking, type ReporteGeneral } from '@/api/evaluaciones'
 import { GlossaryTerm } from '@/lib/Tooltip'
+import { useIsMobile } from '@/lib/useMediaQuery'
 
 function exportReporteCSV(data: ReporteGeneral) {
   const rows: string[] = []
@@ -91,6 +92,7 @@ function pmColor(pm: number): string {
 }
 
 export function ReportesView() {
+  const isMobile = useIsMobile()
   const { data, isLoading, isFetching, refetch } = useQuery({
     queryKey: ['reporte-general'],
     queryFn: evaluacionesApi.reporteGeneral,
@@ -154,7 +156,7 @@ export function ReportesView() {
       </div>
 
       {/* Stats */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: 14, marginBottom: 22 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(auto-fit, minmax(190px, 1fr))', gap: 14, marginBottom: 22 }}>
         <StatCard icon="◎" label="Evaluaciones totales"  value={total}       bg="#ebf5fb" color="var(--blue)" />
         <StatCard icon="✓" label="Completadas"           value={completadas} bg="#eafaf1" color="var(--green)" />
         <StatCard icon="◑" label="En progreso"           value={en_progreso} bg="#fef9e7" color="var(--orange)" />
@@ -170,7 +172,7 @@ export function ReportesView() {
       ) : (
         <>
           {/* Fila 1: Recomendaciones + FODA global */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 16, marginBottom: 16 }}>
 
             {/* Distribución recomendaciones */}
             <div style={{ background: 'var(--white)', border: '1px solid rgba(0,0,0,0.07)', borderRadius: 'var(--radius)', padding: '22px 24px', boxShadow: 'var(--shadow)' }}>
@@ -223,7 +225,7 @@ export function ReportesView() {
 
           {/* Fila 2: Ranking de factores */}
           {factor_ranking.length > 0 && (
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 16, marginBottom: 16 }}>
 
               {/* Top fortalezas */}
               <div style={{ background: 'var(--white)', border: '1px solid rgba(0,0,0,0.07)', borderRadius: 'var(--radius)', padding: '22px 24px', boxShadow: 'var(--shadow)' }}>
@@ -254,7 +256,7 @@ export function ReportesView() {
           )}
 
           {/* Fila 3: Todos los factores + Historial mensual */}
-          <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 16, marginBottom: 16 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '2fr 1fr', gap: 16, marginBottom: 16 }}>
 
             {/* Ranking completo */}
             {factor_ranking.length > 0 && (
@@ -263,7 +265,8 @@ export function ReportesView() {
                 <p style={{ fontSize: 12, color: 'var(--gray3)', marginBottom: 14 }}>
                   Puntuación Media promedio entre todas las evaluaciones completadas. Escala 1–4.
                 </p>
-                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 420 }}>
                   <thead>
                     <tr style={{ background: '#fafbfc', borderBottom: '1px solid #eaecee' }}>
                       {[
@@ -302,6 +305,7 @@ export function ReportesView() {
                     })}
                   </tbody>
                 </table>
+                </div>
               </div>
             )}
 

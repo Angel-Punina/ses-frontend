@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { evaluacionesApi, type EvaluacionSubfactor, type InconsistenciaIA } from '@/api/evaluaciones'
 import { ContextoIAPanel } from './ContextoIAPanel'
+import { useIsMobile } from '@/lib/useMediaQuery'
 
 const ID_LABELS: Record<number, { label: string; short: string }> = {
   1: { label: 'No cumple', short: 'No' },
@@ -86,6 +87,7 @@ function SoftwareInfoBar({ evaluacionId }: { evaluacionId: number }) {
 export function Paso3({ evaluacionId }: { evaluacionId: number }) {
   const navigate = useNavigate()
   const qc = useQueryClient()
+  const isMobile = useIsMobile()
 
   const { data: subfactors = [], isLoading } = useQuery({
     queryKey: ['paso3', evaluacionId],
@@ -216,11 +218,11 @@ export function Paso3({ evaluacionId }: { evaluacionId: number }) {
       </div>
 
       {/* Two-column layout: sidebar + content panel */}
-      <div style={{ display: 'grid', gridTemplateColumns: '190px 1fr', border: '1.5px solid #d5d8dc', borderRadius: 12, overflow: 'hidden', background: 'var(--white)', boxShadow: 'var(--shadow)' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '190px 1fr', border: '1.5px solid #d5d8dc', borderRadius: 12, overflow: 'hidden', background: 'var(--white)', boxShadow: 'var(--shadow)' }}>
 
         {/* Left sidebar — factor tabs */}
-        <div style={{ background: '#fafbfc', borderRight: '1px solid #eaecee', display: 'flex', flexDirection: 'column' }}>
-          <div style={{ overflowY: 'auto', flex: 1 }}>
+        <div style={{ background: '#fafbfc', borderRight: isMobile ? 'none' : '1px solid #eaecee', borderBottom: isMobile ? '1px solid #eaecee' : 'none', display: 'flex', flexDirection: isMobile ? 'row' : 'column', overflowX: isMobile ? 'auto' : 'visible' }}>
+          <div style={{ overflowY: isMobile ? 'visible' : 'auto', display: isMobile ? 'flex' : 'block', flex: isMobile ? 'none' : 1 }}>
             {factorList.map(({ meta, items }) => {
               const scored = items.filter((sf) => idMap[sf.id] !== undefined).length
               const total = items.length
@@ -270,7 +272,7 @@ export function Paso3({ evaluacionId }: { evaluacionId: number }) {
           </div>
 
           {/* Global progress */}
-          <div style={{ borderTop: '1px solid #eaecee', padding: '10px 12px' }}>
+          {!isMobile && <div style={{ borderTop: '1px solid #eaecee', padding: '10px 12px' }}>
             <div style={{ fontSize: 10, fontWeight: 500, color: 'var(--gray2)', textTransform: 'uppercase', letterSpacing: '.04em', marginBottom: 5 }}>
               Progreso global
             </div>
@@ -461,6 +463,7 @@ function ScaleGroup({
   onChange: (v: number) => void
   isIaSuggested?: boolean
 }) {
+  const isMobile = useIsMobile()
   return (
     <div style={{ display: 'flex', gap: 4 }}>
       {[1, 2, 3, 4].map((v) => {
@@ -483,7 +486,7 @@ function ScaleGroup({
             title={sel && isIaSuggested ? 'Valor sugerido por precalificación IA — puedes modificarlo' : undefined}
             style={{
               border: `2px solid ${borderColor}`,
-              borderRadius: 7, width: 58, padding: '6px 4px',
+              borderRadius: 7, width: isMobile ? 48 : 58, padding: '6px 4px',
               cursor: 'pointer', textAlign: 'center', fontSize: 10.5,
               color: textColor,
               background: bgColor,

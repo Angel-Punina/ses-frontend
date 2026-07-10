@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { evaluacionesApi } from '@/api/evaluaciones'
 import { GlossaryTerm } from '@/lib/Tooltip'
+import { useIsMobile } from '@/lib/useMediaQuery'
 
 const FODA_CONFIG = {
   Fortaleza: {
@@ -43,6 +44,7 @@ function getFodaLiveSoporte(pm: number, tipoSoporte: 'interno' | 'externo' | nul
 export function Paso5({ evaluacionId }: { evaluacionId: number }) {
   const navigate = useNavigate()
   const qc = useQueryClient()
+  const isMobile = useIsMobile()
 
   const { data: factors = [], isLoading } = useQuery({
     queryKey: ['paso5', evaluacionId],
@@ -120,7 +122,7 @@ export function Paso5({ evaluacionId }: { evaluacionId: number }) {
       </div>
 
       {/* Summary stats */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10, marginBottom: 20 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : '1fr 1fr 1fr', gap: 10, marginBottom: 20 }}>
         {[
           { value: positivos, label: 'Positivos (F + O)', color: '#27ae60' },
           { value: negativos, label: 'Negativos (D + A)', color: '#e74c3c' },
@@ -184,7 +186,7 @@ export function Paso5({ evaluacionId }: { evaluacionId: number }) {
       )}
 
       {/* 4-quadrant FODA grid */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 24 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 12, marginBottom: 24 }}>
         {(['Fortaleza', 'Oportunidad', 'Debilidad', 'Amenaza'] as const).map((key) => {
           const cfg = FODA_CONFIG[key]
           const items = fodaGroups[key]

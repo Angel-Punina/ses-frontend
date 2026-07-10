@@ -4,6 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { evaluacionesApi, type Evaluacion, type EvaluacionFactor, type AnalisisRiesgosResponse } from '@/api/evaluaciones'
 import { GlossaryTerm } from '@/lib/Tooltip'
 import { useToast } from '@/lib/toast'
+import { useIsMobile } from '@/lib/useMediaQuery'
 
 const FODA_STYLE: Record<string, { color: string; bg: string }> = {
   Fortaleza: { color: '#27ae60', bg: '#eafaf1' },
@@ -22,6 +23,7 @@ export function Paso6({ evaluacionId }: { evaluacionId: number }) {
   const navigate = useNavigate()
   const qc = useQueryClient()
   const { show } = useToast()
+  const isMobile = useIsMobile()
   const [downloading, setDownloading] = useState(false)
   const [showSavePlantilla, setShowSavePlantilla] = useState(false)
 
@@ -121,7 +123,7 @@ export function Paso6({ evaluacionId }: { evaluacionId: number }) {
         background: recStyle.bg,
         border: `2px solid ${recStyle.border}`,
         borderRadius: 'var(--radius)',
-        padding: '28px 32px',
+        padding: isMobile ? '20px 16px' : '28px 32px',
         textAlign: 'center',
         marginBottom: 28,
       }}>
@@ -136,9 +138,11 @@ export function Paso6({ evaluacionId }: { evaluacionId: number }) {
           <strong style={{ fontFamily: '"DM Mono", monospace', fontSize: 16 }}>
             {score_ponderado >= 0 ? '+' : ''}{score_ponderado}
           </strong>
-          <span style={{ fontSize: 12, marginLeft: 12, opacity: 0.7 }}>
-            (conteo simple: {score >= 0 ? '+' : ''}{score} · F={foda_counts.Fortaleza} O={foda_counts.Oportunidad} D={foda_counts.Debilidad} A={foda_counts.Amenaza})
-          </span>
+          {!isMobile && (
+            <span style={{ fontSize: 12, marginLeft: 12, opacity: 0.7 }}>
+              (conteo simple: {score >= 0 ? '+' : ''}{score} · F={foda_counts.Fortaleza} O={foda_counts.Oportunidad} D={foda_counts.Debilidad} A={foda_counts.Amenaza})
+            </span>
+          )}
         </p>
       </div>
 
@@ -147,7 +151,7 @@ export function Paso6({ evaluacionId }: { evaluacionId: number }) {
         <h4 style={{ fontSize: 12, fontWeight: 600, color: 'var(--gray2)', textTransform: 'uppercase', letterSpacing: '.5px', marginBottom: 12 }}>
           Resumen <GlossaryTerm term="FODA">FODA</GlossaryTerm>
         </h4>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 10 }}>
           {(['Fortaleza', 'Oportunidad', 'Debilidad', 'Amenaza'] as const).map((label) => {
             const style = FODA_STYLE[label]
             const plural = { Fortaleza: 'Fortalezas', Oportunidad: 'Oportunidades', Debilidad: 'Debilidades', Amenaza: 'Amenazas' }[label]
@@ -180,7 +184,7 @@ export function Paso6({ evaluacionId }: { evaluacionId: number }) {
         <h4 style={{ fontSize: 12, fontWeight: 600, color: 'var(--gray2)', textTransform: 'uppercase', letterSpacing: '.5px', marginBottom: 12 }}>
           Detalle por factor ({factores.length} evaluados)
         </h4>
-        <div style={{ background: 'var(--white)', border: '1.5px solid #eaecee', borderRadius: 'var(--radius)', overflow: 'hidden' }}>
+        <div style={{ background: 'var(--white)', border: '1.5px solid #eaecee', borderRadius: 'var(--radius)', overflow: 'hidden', overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
           {factores.map((f, i) => {
             const pm = f.pm ? parseFloat(f.pm) : null
             const pct = pm !== null ? Math.round(Math.max(0, (pm - 1) / 3) * 100) : 0

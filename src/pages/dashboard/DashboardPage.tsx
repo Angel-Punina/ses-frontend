@@ -939,7 +939,8 @@ function PlantillasView() {
         </div>
       ) : (
         <div style={{ background: 'var(--white)', border: '1px solid rgba(0,0,0,0.07)', borderRadius: 'var(--radius)', boxShadow: 'var(--shadow)', overflow: 'hidden' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+          <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 500 }}>
             <thead>
               <tr style={{ background: '#fafbfc', borderBottom: '1px solid #eaecee' }}>
                 {['Nombre', 'Tipo organización', 'Categoría software', 'Factores IE', 'Visibilidad', ''].map((h) => (
@@ -986,6 +987,7 @@ function PlantillasView() {
               ))}
             </tbody>
           </table>
+          </div>
         </div>
       )}
     </>

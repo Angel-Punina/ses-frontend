@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { evaluacionesApi, type EvaluacionFactor, type IaContextoResponse, CATEGORIAS } from '@/api/evaluaciones'
 import { GlossaryTerm } from '@/lib/Tooltip'
+import { useIsMobile } from '@/lib/useMediaQuery'
 
 const ID_LABELS: Record<number, { label: string; short: string }> = {
   1: { label: 'Irrelevante', short: 'Irrel.' },
@@ -40,6 +41,7 @@ function computeIR(id: number, is: number): number {
 export function Paso1({ evaluacionId, usarPlantilla = false }: { evaluacionId: number; usarPlantilla?: boolean }) {
   const navigate = useNavigate()
   const qc = useQueryClient()
+  const isMobile = useIsMobile()
 
   const { data: factors = [], isLoading } = useQuery({
     queryKey: ['paso1', evaluacionId],
@@ -219,7 +221,7 @@ export function Paso1({ evaluacionId, usarPlantilla = false }: { evaluacionId: n
       </div>}
 
       {/* Info box */}
-      <div style={{ background: '#ebf5fb', border: '1px solid #aed6f1', borderRadius: 8, padding: '12px 14px', fontSize: 13, color: 'var(--blue)', display: 'flex', alignItems: 'flex-start', gap: 10, marginBottom: 20, lineHeight: 1.5 }}>
+      <div style={{ background: '#ebf5fb', border: '1px solid #aed6f1', borderRadius: 8, padding: isMobile ? '10px 12px' : '12px 14px', fontSize: 13, color: 'var(--blue)', display: 'flex', alignItems: 'flex-start', gap: 10, marginBottom: 20, lineHeight: 1.5 }}>
         <span style={{ fontSize: 16, flexShrink: 0 }}>ℹ</span>
         <span>
           Valora del <strong>1 (Irrelevante)</strong> al <strong>4 (Fundamental)</strong>.{' '}
@@ -445,6 +447,7 @@ function IaContextPanel({ evaluacionId, factorId }: { evaluacionId: number; fact
 }
 
 function ScaleGroup({ value, onChange }: { value: number | null; onChange: (v: number) => void }) {
+  const isMobile = useIsMobile()
   return (
     <div style={{ display: 'flex', gap: 4 }}>
       {[1, 2, 3, 4].map((v) => {
@@ -456,7 +459,7 @@ function ScaleGroup({ value, onChange }: { value: number | null; onChange: (v: n
             onClick={() => onChange(v)}
             style={{
               border: `2px solid ${sel ? selStyle!.border : '#d5d8dc'}`,
-              borderRadius: 7, width: 68, padding: '6px 4px',
+              borderRadius: 7, width: isMobile ? 52 : 68, padding: '6px 4px',
               cursor: 'pointer', textAlign: 'center', fontSize: 11,
               color: sel ? selStyle!.color : 'var(--gray2)',
               background: sel ? selStyle!.bg : 'var(--white)',

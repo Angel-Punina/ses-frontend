@@ -6,6 +6,7 @@ import {
   type SubfactorObsolescenceReport, type Subfactor,
 } from '@/api/evaluaciones'
 import { useAuthStore } from '@/store/authStore'
+import { useIsMobile as _useIsMobile } from '@/lib/useMediaQuery'
 
 const DIM_STYLE: Record<string, { bg: string; color: string; border: string; dot: string }> = {
   T: { bg: '#ebf5fb', color: '#1a5276', border: '#aed6f1', dot: '#2980b9' },
@@ -878,6 +879,7 @@ function ObsDimSection({
 export function CatalogoView() {
   const { user } = useAuthStore()
   const isAdmin = user?.rol === 'Admin'
+  const isMobile = _useIsMobile()
   const [tab, setTab] = useState<'factores' | 'propuestas' | 'obsolescencia'>('factores')
   const [expandedJustif, setExpandedJustif] = useState<Set<number>>(new Set())
   const [generando, setGenerando] = useState(false)
@@ -1163,7 +1165,7 @@ export function CatalogoView() {
 
       {/* Stats */}
       {!isLoading && dims && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginBottom: 20 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(4, 1fr)', gap: 12, marginBottom: 20 }}>
           {[
             { label: 'Dimensiones', value: dims.length },
             { label: 'Factores', value: totalFactores },

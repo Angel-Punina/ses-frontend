@@ -117,3 +117,17 @@
     font-size: 16px !important; /* prevents iOS auto-zoom on focus */
   }
 }
+
+/* Responsive table wrapper — use on any wide table */
+.tbl-wrap {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  border-radius: var(--radius);
+}
+
+/* Cards that should stack on mobile */
+@media (max-width: 767px) {
+  .card-grid {
+    grid-template-columns: 1fr !important;
+  }
+}

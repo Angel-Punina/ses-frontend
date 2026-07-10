@@ -126,7 +126,7 @@ export function EvaluacionPage() {
             style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'transparent', border: '1.5px solid #d5d8dc', borderRadius: 8, padding: '6px 14px', fontSize: 13, color: 'var(--gray1)', cursor: 'pointer' }}
             onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--gray4)' }}
             onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent' }}
-          >⤴ Compartir</button>
+          >⤴{!isMobile && ' Compartir'}</button>
         </div>
       </div>
 
@@ -154,16 +154,16 @@ export function EvaluacionPage() {
       {/* ── Stepper ── */}
       <div style={{
         background: 'var(--white)', borderBottom: '1px solid rgba(0,0,0,0.06)',
-        padding: '14px 32px 0', display: 'flex', alignItems: 'center', gap: 8, overflowX: 'auto',
+        padding: isMobile ? '10px 12px 0' : '14px 32px 0', display: 'flex', alignItems: 'center', gap: 8, overflowX: 'auto',
       }}>
         {STEPS.map((step, i) => {
           const done = step.num < pasoActual
           const active = step.num === pasoActual
           return (
             <div key={step.num} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, minWidth: 68, paddingBottom: 14 }}>
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, minWidth: isMobile ? 52 : 68, paddingBottom: 14 }}>
                 <div style={{
-                  width: 32, height: 32, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  width: isMobile ? 28 : 32, height: isMobile ? 28 : 32, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
                   fontSize: 13, fontWeight: 600, transition: 'all 0.2s',
                   background: done ? 'var(--green)' : active ? 'var(--dark)' : 'var(--white)',
                   border: done ? '2px solid var(--green)' : active ? '2px solid var(--dark)' : '2px solid #d5d8dc',
@@ -181,7 +181,7 @@ export function EvaluacionPage() {
                 </span>
               </div>
               {i < STEPS.length - 1 && (
-                <div style={{ width: 40, height: 2, background: done ? 'var(--green)' : '#eaecee', borderRadius: 2, marginBottom: 18, flexShrink: 0 }} />
+                <div style={{ width: isMobile ? 20 : 40, height: 2, background: done ? 'var(--green)' : '#eaecee', borderRadius: 2, marginBottom: 18, flexShrink: 0 }} />
               )}
             </div>
           )

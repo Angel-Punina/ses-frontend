@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { usersApi, type CreateUserData, type AuditLogEntry } from '@/api/users'
+import { useIsMobile } from '@/lib/useMediaQuery'
 
 function DiffRow({ log }: { log: AuditLogEntry }) {
   const hasDiff = log.valor_anterior !== undefined || log.valor_nuevo !== undefined
@@ -150,7 +151,8 @@ export function AdminView() {
             {usersLoading ? (
               <div style={{ padding: 32, textAlign: 'center', color: 'var(--gray2)', fontSize: 13 }}>Cargando...</div>
             ) : (
-              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+              <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 600 }}>
                 <thead>
                   <tr style={{ background: '#fafbfc', borderBottom: '1px solid #eaecee' }}>
                     {['Usuario', 'Correo', 'Rol', 'Estado', 'Registro', 'Último acceso', ''].map((h) => (
@@ -194,8 +196,8 @@ export function AdminView() {
                             }}
                           >{u.activo ? 'Activo' : 'Inactivo'}</button>
                         </td>
-                        <td style={{ padding: '12px 16px', fontSize: 12, color: 'var(--gray2)' }}>{fmtDate(u.fecha_registro)}</td>
-                        <td style={{ padding: '12px 16px', fontSize: 12, color: 'var(--gray2)' }}>{fmtDate(u.ultimo_acceso)}</td>
+                        <td style={{ padding: '12px 16px', fontSize: 12, color: 'var(--gray2)', whiteSpace: 'nowrap' }}>{fmtDate(u.fecha_registro)}</td>
+                        <td style={{ padding: '12px 16px', fontSize: 12, color: 'var(--gray2)', whiteSpace: 'nowrap' }}>{fmtDate(u.ultimo_acceso)}</td>
                         <td style={{ padding: '12px 16px' }}>
                           <button
                             onClick={() => { if (confirm(`¿Eliminar a ${u.nombre} ${u.apellido}?`)) deleteMutation.mutate(u.id) }}
@@ -210,6 +212,7 @@ export function AdminView() {
                   })}
                 </tbody>
               </table>
+              </div>
             )}
           </div>
         </div>
@@ -289,7 +292,8 @@ function AuditLogTable({ logs, isLoading }: { logs: AuditLogEntry[]; isLoading: 
       ) : logs.length === 0 ? (
         <div style={{ padding: 32, textAlign: 'center', color: 'var(--gray2)', fontSize: 13 }}>Sin registros para los filtros seleccionados</div>
       ) : (
-        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+        <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 560 }}>
           <thead>
             <tr style={{ background: '#fafbfc', borderBottom: '1px solid #eaecee' }}>
               {['#', 'Usuario', 'Acción', 'IP', 'Fecha'].map((h) => (
@@ -339,6 +343,7 @@ function AuditLogTable({ logs, isLoading }: { logs: AuditLogEntry[]; isLoading: 
             })}
           </tbody>
         </table>
+        </div>
       )}
     </div>
   )
@@ -350,6 +355,7 @@ function CreateUserModal({ onClose, onSubmit, loading, error }: {
   loading: boolean
   error: string
 }) {
+  const isMobile = useIsMobile()
   const [form, setForm] = useState<CreateUserData>({ correo: '', nombre: '', apellido: '', rol: 'Evaluador', password: '' })
   const set = (k: keyof CreateUserData) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
     setForm({ ...form, [k]: e.target.value })
@@ -364,7 +370,7 @@ function CreateUserModal({ onClose, onSubmit, loading, error }: {
       style={{ position: 'fixed', inset: 0, background: 'rgba(15,39,68,0.5)', zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}
       onClick={(e) => { if (e.target === e.currentTarget) onClose() }}
     >
-      <div style={{ background: 'var(--white)', borderRadius: 16, padding: 32, width: '100%', maxWidth: 460, boxShadow: 'var(--shadow-lg)' }}>
+      <div style={{ background: 'var(--white)', borderRadius: 16, padding: isMobile ? 20 : 32, width: '100%', maxWidth: 460, boxShadow: 'var(--shadow-lg)' }}>
         <h2 style={{ fontFamily: '"Fraunces", serif', fontSize: 20, fontWeight: 600, color: 'var(--dark)', marginBottom: 6 }}>Nuevo usuario</h2>
         <p style={{ color: 'var(--gray2)', fontSize: 13, marginBottom: 24 }}>Crea una cuenta para un nuevo miembro del equipo.</p>
 
@@ -373,7 +379,7 @@ function CreateUserModal({ onClose, onSubmit, loading, error }: {
         )}
 
         <form onSubmit={(e) => { e.preventDefault(); onSubmit(form) }}>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 14 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 12, marginBottom: 14 }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
               <label style={{ fontSize: 13, fontWeight: 500, color: 'var(--gray1)' }}>Nombre <span style={{ color: 'var(--accent)' }}>*</span></label>
               <input type="text" required value={form.nombre} onChange={set('nombre')} style={inputStyle}
@@ -393,7 +399,7 @@ function CreateUserModal({ onClose, onSubmit, loading, error }: {
               onFocus={(e) => { e.target.style.borderColor = 'var(--light)' }}
               onBlur={(e) => { e.target.style.borderColor = '#d5d8dc' }} />
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 24 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 12, marginBottom: 24 }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
               <label style={{ fontSize: 13, fontWeight: 500, color: 'var(--gray1)' }}>Rol</label>
               <select value={form.rol} onChange={set('rol')} style={{ ...inputStyle, cursor: 'pointer' }}>
