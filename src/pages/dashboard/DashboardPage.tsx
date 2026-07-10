@@ -1,6 +1,6 @@
 import { useAuthStore } from '@/store/authStore'
 import { authApi, type User } from '@/api/auth'
-import { evaluacionesApi, type Evaluacion, CATEGORIAS, type CategoriaValue, type PrecalificacionInput, type IePreviewItem } from '@/api/evaluaciones'
+import { evaluacionesApi, type Evaluacion, type ContextoPrecalificacion, CATEGORIAS, type CategoriaValue, type PrecalificacionInput, type IePreviewItem } from '@/api/evaluaciones'
 import { useNavigate } from 'react-router-dom'
 import { useState, useEffect, useRef } from 'react'
 import { useIsMobile } from '@/lib/useMediaQuery'
@@ -797,6 +797,59 @@ function EvalTable({ evals, onDeleteSuccess, readOnly }: { evals: Evaluacion[]; 
   )
 }
 
+const CONTEXTO_LABELS: Record<string, Record<string, string>> = {
+  tipo_organizacion: {
+    universidad: 'Universidad o instituto académico', empresa_privada: 'Empresa privada',
+    empresa_publica: 'Empresa o entidad pública', hospital: 'Hospital o centro de salud',
+    gobierno: 'Organismo de gobierno', ong: 'ONG o fundación', pyme: 'PYME', otro: 'Otro',
+  },
+  tamano_organizacion: {
+    micro: 'Micro (1-10 personas)', pequena: 'Pequeña (11-50 personas)',
+    mediana: 'Mediana (51-200 personas)', grande: 'Grande (más de 200 personas)',
+  },
+  madurez_ti: {
+    alta: 'Equipo TI propio y dedicado', media: 'Soporte TI parcial o subcontratado',
+    baja: 'Sin equipo TI formal',
+  },
+  prioridad_clave: {
+    costo: 'Reducción de costos (TCO)', funcionalidades: 'Funcionalidades específicas',
+    facilidad: 'Facilidad de uso y adopción', soporte: 'Soporte activo y comunidad',
+    seguridad: 'Seguridad y cumplimiento normativo', integracion: 'Integración con sistemas existentes',
+    independencia: 'Independencia de proveedor',
+  },
+  proposito: {
+    gestion_interna: 'Gestión interna (RRHH, finanzas)', educacion: 'Educación y formación',
+    produccion: 'Producción y manufactura', infraestructura: 'Infraestructura TI',
+    investigacion: 'Investigación y desarrollo',
+  },
+}
+
+function ContextoPrecalificacionPanel({ ctx }: { ctx: ContextoPrecalificacion }) {
+  const rows: { label: string; value: string }[] = []
+  if (ctx.tipo_organizacion) rows.push({ label: 'Tipo de organización', value: CONTEXTO_LABELS.tipo_organizacion[ctx.tipo_organizacion] ?? ctx.tipo_organizacion })
+  if (ctx.tamano_organizacion) rows.push({ label: 'Tamaño', value: CONTEXTO_LABELS.tamano_organizacion[ctx.tamano_organizacion] ?? ctx.tamano_organizacion })
+  if (ctx.madurez_ti) rows.push({ label: 'Madurez TI', value: CONTEXTO_LABELS.madurez_ti[ctx.madurez_ti] ?? ctx.madurez_ti })
+  if (ctx.prioridad_clave) rows.push({ label: 'Prioridad de adopción', value: CONTEXTO_LABELS.prioridad_clave[ctx.prioridad_clave] ?? ctx.prioridad_clave })
+  if (ctx.proposito) rows.push({ label: 'Propósito de uso', value: CONTEXTO_LABELS.proposito[ctx.proposito] ?? ctx.proposito })
+  if (ctx.software_reemplaza) rows.push({ label: 'Reemplaza a', value: ctx.software_reemplaza })
+  if (rows.length === 0) return null
+  return (
+    <div style={{ background: '#f5f0ff', border: '1.5px solid #d7c8f5', borderRadius: 10, padding: '12px 16px', marginBottom: 20 }}>
+      <div style={{ fontSize: 12, fontWeight: 600, color: '#6c3fc5', textTransform: 'uppercase', letterSpacing: '.04em', marginBottom: 10 }}>
+        Contexto usado para la precalificación IA
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+        {rows.map((r) => (
+          <div key={r.label} style={{ display: 'flex', gap: 8, fontSize: 13 }}>
+            <span style={{ color: '#7b6a9a', minWidth: 140, flexShrink: 0 }}>{r.label}:</span>
+            <span style={{ color: 'var(--gray1)', fontWeight: 500 }}>{r.value}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 function EditEvaluacionModal({ evaluacion, onClose, onSaved }: {
   evaluacion: Evaluacion
   onClose: () => void
@@ -807,7 +860,7 @@ function EditEvaluacionModal({ evaluacion, onClose, onSaved }: {
     nombre: evaluacion.nombre,
     software: evaluacion.software,
     organizacion: evaluacion.organizacion,
-    descripcion: evaluacion.descripcion,
+    descripcion: evaluacion.descripcion ?? '',
     categoria: evaluacion.categoria,
   })
   const [error, setError] = useState('')
@@ -835,9 +888,25 @@ function EditEvaluacionModal({ evaluacion, onClose, onSaved }: {
       style={{ position: 'fixed', inset: 0, background: 'rgba(15,39,68,0.5)', zIndex: 300, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20, overflowY: 'auto' }}
       onClick={(e) => { if (e.target === e.currentTarget && !updateMutation.isPending) onClose() }}
     >
-      <div style={{ background: 'var(--white)', borderRadius: 16, padding: 32, width: '100%', maxWidth: 520, boxShadow: 'var(--shadow-lg)', margin: 'auto' }}>
-        <h2 style={{ fontFamily: '"Fraunces", serif', fontSize: 20, fontWeight: 600, color: 'var(--dark)', marginBottom: 6 }}>Editar evaluación</h2>
-        <p style={{ color: 'var(--gray2)', fontSize: 13, marginBottom: 22 }}>Actualiza los metadatos de la evaluación.</p>
+      <div style={{ background: 'var(--white)', borderRadius: 16, padding: isMobile ? 20 : 32, width: '100%', maxWidth: 560, boxShadow: 'var(--shadow-lg)', margin: 'auto' }}>
+        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 6 }}>
+          <div>
+            <h2 style={{ fontFamily: '"Fraunces", serif', fontSize: 20, fontWeight: 600, color: 'var(--dark)', margin: 0 }}>Editar evaluación</h2>
+            <p style={{ color: 'var(--gray2)', fontSize: 13, marginTop: 4, marginBottom: 0 }}>Actualiza los metadatos de la evaluación.</p>
+          </div>
+          {evaluacion.usar_precalificacion && (
+            <span style={{ fontSize: 11, fontWeight: 600, padding: '3px 10px', borderRadius: 99, background: '#ede7ff', color: '#6c3fc5', whiteSpace: 'nowrap', marginLeft: 12 }}>
+              Asistida por IA
+            </span>
+          )}
+        </div>
+
+        <div style={{ height: 1, background: '#eaecee', margin: '16px 0 20px' }} />
+
+        {/* IA context — read-only, shown only for IA-assisted evaluations */}
+        {evaluacion.usar_precalificacion && evaluacion.contexto_precalificacion && (
+          <ContextoPrecalificacionPanel ctx={evaluacion.contexto_precalificacion} />
+        )}
 
         {error && (
           <div style={{ background: '#f9ebea', border: '1px solid #e59866', borderRadius: 8, padding: '10px 14px', marginBottom: 16, fontSize: 13, color: 'var(--red)' }}>{error}</div>
@@ -872,9 +941,13 @@ function EditEvaluacionModal({ evaluacion, onClose, onSaved }: {
             </select>
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 24 }}>
-            <label style={{ fontSize: 13, fontWeight: 500, color: 'var(--gray1)' }}>Descripción</label>
+            <label style={{ fontSize: 13, fontWeight: 500, color: 'var(--gray1)' }}>
+              Descripción
+              <span style={{ fontSize: 11.5, color: 'var(--gray3)', fontWeight: 400, marginLeft: 6 }}>— contexto del software y su propósito</span>
+            </label>
             <textarea value={form.descripcion} onChange={(e) => setForm({ ...form, descripcion: e.target.value })}
-              rows={3} style={{ ...inputStyle, resize: 'vertical' }}
+              rows={4} placeholder="Describe el software, para qué lo necesitas y el contexto de uso..."
+              style={{ ...inputStyle, resize: 'vertical', lineHeight: 1.5 }}
               disabled={updateMutation.isPending} onFocus={focusIn} onBlur={focusOut} />
           </div>
           <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>

@@ -12,6 +12,15 @@ export const CATEGORIAS = [
 
 export type CategoriaValue = typeof CATEGORIAS[number]['value']
 
+export interface ContextoPrecalificacion {
+  proposito?: string
+  tamano_organizacion?: string
+  software_reemplaza?: string
+  tipo_organizacion?: string
+  madurez_ti?: string
+  prioridad_clave?: string
+}
+
 export interface Evaluacion {
   id: number
   nombre: string
@@ -25,6 +34,8 @@ export interface Evaluacion {
   actualizada: string
   paso_numero: number
   usar_plantilla: boolean
+  usar_precalificacion: boolean
+  contexto_precalificacion: ContextoPrecalificacion | null
 }
 
 export interface EvaluacionFactor {
